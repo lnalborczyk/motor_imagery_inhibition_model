@@ -1,7 +1,6 @@
 #########################################################################
-# Modelling the impact of activation/inhibition patterns on RTs and MTs #
-# during motor imagery and action-mode switching paradigms              #
-# OSF project: xxxx                                                     #
+# Shiny app to explore the model of activation/inhibition patterns      #
+# during motor imagery and action-mode switching paradigms              #                             #
 # --------------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                        #
 # E-mail: ladislas.nalborczyk@gmail.com                                 #
