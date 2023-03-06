@@ -6,7 +6,13 @@
 # Last updated on March 6, 2023
 ##############################################################
 
-model_fitting <- function (rt, resp, method = c("nlminb", "optim") ) {
+loss_function <- function (model, data) {
+    
+    # to be defined
+    
+}
+
+model_fitting <- function (data, method = c("nlminb", "optim") ) {
     
     if (method == "nlminb") {
         
@@ -37,15 +43,7 @@ model_fitting <- function (rt, resp, method = c("nlminb", "optim") ) {
 # source(file = "model.R")
 
 # importing the data
-# data(self_produced_speech)
-
-# reshaping the data
-# df <- self_produced_speech |>
-#   # removing the last block
-#   filter(block < 7) |>
-#   # keeping only the relevant columns
-#   select(participant, choice = response, RT) |>
-#   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
+# data(some_data)
 
 # fitting the model (pars are a, v, t0, w, sv)
-# ddm_fitting(rt = df_ln$RT, resp = df_ln$choice, method = "nlminb")$par
+# model_fitting(data = some_data, method = "nlminb")$par

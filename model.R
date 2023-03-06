@@ -10,6 +10,7 @@
 
 library(tidyverse)
 library(patchwork)
+library(MetBrewer)
 
 #############################################################################
 # General function - Parameters
@@ -78,7 +79,8 @@ model <- function (
     for (i in 1:nsims) { # for each simulated experiment
         
         # adding some variability in threshold (or not)
-        threshold_sim <- rnorm(n = 1, mean = threshold, sd = 0)
+        # threshold_sim <- rnorm(n = 1, mean = threshold, sd = 0)
+        # threshold_sim <- rnorm(n = 1, mean = threshold, sd = 0)
         
         # adding some variability in the other parameters
         amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.1)
@@ -94,8 +96,8 @@ model <- function (
         curvature_inhib_prev_sim <- rnorm(n = 1, mean = curvature_inhib_prev, sd = 0.01)
         
         # storing execution and imagery thresholds
-        results$exec_threshold[results$sim == i] <- threshold_sim
-        results$imag_threshold[results$sim == i] <- threshold_prop * threshold_sim
+        results$exec_threshold[results$sim == i] <- exec_threshold
+        results$imag_threshold[results$sim == i] <- imag_threshold
         
         # storing activation values for this simulation
         results$activation[results$sim == i] <- activation_inhibition_function(
@@ -123,6 +125,19 @@ model <- function (
         
     }
     
+    # computing the activation/inhibition balance and
+    # implied distributions of RTs and MTs
+    results <- results %>%
+        group_by(sim) %>%
+        mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+        mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
+        mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
+        mutate(mt_exec = offset_exec - onset_exec) %>%
+        mutate(onset_imag = which(balance > imag_threshold) %>% first() ) %>%
+        mutate(offset_imag = which(balance > imag_threshold) %>% last() ) %>%
+        mutate(mt_imag = offset_imag - onset_imag) %>%
+        ungroup()
+    
     # returning the results
     return (results)
     
@@ -133,64 +148,15 @@ model <- function (
 # distributions of RTs and MTs
 ###################################################################
 
-simulations_II <- simulating_rt(
+simulation_results <- model(
     nsims = 1000, nsamples = 2000,
     amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,
-    # amplitude_inhib = 1 for imagined current trials and 0.5 for executed trials
     amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 1.2,
-    # amplitude_inhib_prev = 1 for imagined previous trials and 0.5 for executed trials
     amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2,
-    threshold = 1, threshold_prop = 0.25, iti = 10
+    exec_threshold = 1, imag_threshold = 0.5, iti = 10
     )
 
-simulations_EI <- simulating_rt(
-    nsims = 1000, nsamples = 2000,
-    amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,
-    # amplitude_inhib = 1 for imagined current trials and 0.5 for executed trials
-    amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 1.2,
-    # amplitude_inhib_prev = 1 for imagined previous trials and 0.5 for executed trials
-    amplitude_inhib_prev = 0.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2,
-    threshold = 1, threshold_prop = 0.25, iti = 10
-    )
-
-simulations_IE <- simulating_rt(
-    nsims = 1000, nsamples = 2000,
-    amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,
-    # amplitude_inhib = 1 for imagined current trials and 0.5 for executed trials
-    amplitude_inhib = 0.5, peak_time_inhib = 0.5, curvature_inhib = 1.2,
-    # amplitude_inhib_prev = 1 for imagined previous trials and 0.5 for executed trials
-    amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2,
-    threshold = 1, threshold_prop = 0.25, iti = 10
-    )
-
-simulations_EE <- simulating_rt(
-    nsims = 1000, nsamples = 2000,
-    amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,
-    # amplitude_inhib = 1 for imagined current trials and 0.5 for executed trials
-    amplitude_inhib = 0.5, peak_time_inhib = 0.5, curvature_inhib = 1.2,
-    # amplitude_inhib_prev = 1 for imagined previous trials and 0.5 for executed trials
-    amplitude_inhib_prev = 0.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2,
-    threshold = 1, threshold_prop = 0.25, iti = 10
-    )
-
-p1 <- simulations_EE %>%
-    # mutate(balance = activation / (inhibition * inhibition_previous) ) %>%
-    # mutate(balance = inhibition * inhibition_previous) %>%
-    # mutate(balance = activation / inhibition) %>%
-    # mutate(balance = activation - inhibition - inhibition_previous) %>%
-    # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-    # mutate(balance = activation / max(inhibition, inhibition_previous) ) %>%
-    # mutate(balance = activation / inhibition_previous) %>%
-    # mutate(balance = activation * (inhibition + inhibition_previous) ) %>%
-    # mutate(balance = exp(activation - inhibition - inhibition_previous) ) %>%
-    # mutate(balance = (activation - 2*inhibition - 2*inhibition_previous)^2) %>%
-    # activation function that seems to work for II trials
-    # mutate(total_inhibition = (inhibition + inhibition_previous)^2) %>%
-    # mutate(balance = activation / (inhibition + inhibition_previous)^2) %>%
-    # activation function that seems to work for EI trials
-    mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-    # reshaping the data
-    # select(-total_inhibition)
+p1 <- simulation_results %>%
     pivot_longer(cols = activation:balance) %>%
     ggplot(
         aes(
@@ -200,9 +166,7 @@ p1 <- simulations_EE %>%
             )
         ) +
     geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.25 * 1, linetype = 2) +
-    # geom_texthline(yintercept = 1, linetype = 2, label = "execution threshold") +
-    # geom_texthline(yintercept = 0.8 * 1, linetype = 2, label = "imagery threshold") +
+    geom_hline(yintercept = 0.5, linetype = 2) +
     # plotting individual simulations
     geom_line(size = 0.1, alpha = 0.1, show.legend = FALSE) +
     # plotting average
@@ -213,95 +177,59 @@ p1 <- simulations_EE %>%
         show.legend = TRUE
         ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # scale_fill_manual(values = c("grey70", met.brewer(name = "Johnson", n = 3) ) ) +
-    # scale_colour_manual(values = c("grey70", met.brewer(name = "Johnson", n = 3) ) ) +
     scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 4) ) +
     scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 4) ) +
     labs(
         title = "Simulating activation/inhibition patterns",
-        # subtitle = "Net balance is simply defined as the amount of activation minus the amount\nof inhibition in the current trial and the amount of residual inhibition from the previous trial.",
-        x = "Time within a trial (in ms)",
-        y = "Activation/inhibition (arbitrary units)",
+        subtitle = "Net balance is defined as activation_current / (inhibition_current + inhibition_previous)",
+        x = "Time within a trial (a.u.)",
+        y = "Activation/inhibition (a.u.)",
         colour = "",
         fill = ""
         )
 
-p2 <- simulations_EE %>%
-    # mutate(balance = activation - inhibition - inhibition_previous) %>%
-    # mutate(balance = activation - inhibition) %>%
-    # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-    # mutate(balance = activation * inhibition * inhibition_previous) %>%
-    # mutate(balance = activation * (1 / (inhibition + inhibition_previous)^2) ) %>%
-    # activation function that seems to work for II trials
-    # mutate(balance = activation / (inhibition + inhibition_previous)^2) %>%
-    # activation function that seems to work for EI trials
-    mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-    # select(-inhibition_previous) %>%
-    # pivot_longer(cols = activation:balance) %>%
-    group_by(sim) %>%
-    # mutate(onset = which(balance > imag_threshold) %>% first() ) %>%
-    # mutate(offset = which(balance > imag_threshold) %>% last() ) %>%
-    mutate(onset = which(balance > exec_threshold) %>% first() ) %>%
-    mutate(offset = which(balance > exec_threshold) %>% last() ) %>%
-    ungroup() %>%
-    # head(20)
-    select(sim, onset, offset) %>%
-    distinct() %>%
-    # data.frame()
-    # head()
-    group_by(sim) %>%
-    mutate(mt = offset - onset) %>%
-    ungroup() %>%
-    # head()
-    # ggplot(aes(x = mt) ) +
-    select(-offset) %>%
+p2 <- simulation_results %>%
     mutate(
-        onset_median = median(onset),
-        mt_median = median(mt)
+        exec_rt_median = median(onset_exec),
+        imag_rt_median = median(onset_imag),
+        exec_mt_median = median(mt_exec),
+        imag_mt_median = median(mt_imag),
         ) %>%
-    pivot_longer(cols = onset:mt) %>%
-    # head()
+    pivot_longer(cols = c(onset_imag, mt_imag) ) %>%
     ggplot(aes(x = value, group = name, colour = name, fill = name) ) +
-    # geom_vline(yintercept = onset_median, linetype = 3) +
-    # geom_vline(yintercept = mt_median, linetype = 3) +
-    # geom_line(alpha = 0.2) +
     geom_density(
         alpha = 0.5,
-        # colour = met.brewer(name = "Hiroshige", n = 4)[2],
-        # fill = met.brewer(name = "Hiroshige", n = 4)[2],
         show.legend = FALSE
         ) +
-    # geom_density(
-    #     # aes(x = mt),
-    #     alpha = 0.5,
-    #     colour = met.brewer(name = "Hiroshige", n = 4)[1],
-    #     fill = met.brewer(name = "Hiroshige", n = 4)[1],
-    #     show.legend = FALSE
-    #     ) +
-    # geom_x_median(aes(group = name)) +
-    geom_x_mean(show.legend = FALSE) +
-    geom_x_mean_label(fill = "white", show.legend = FALSE) +
-    # geom_y_median(aes(color = name) ) +
-    # aes(color = name)
-    # geom_boxplot() +
+    geom_label(
+        data = . %>% summarise(m = unique(imag_rt_median) ),
+        aes(x = m, y = 0.01, label = m),
+        position = position_nudge(y = 0.01),
+        size = 4,
+        inherit.aes = FALSE
+        ) +
+    geom_label(
+        data = . %>% summarise(m = unique(imag_mt_median) ),
+        aes(x = m, y = 0.01, label = m),
+        position = position_nudge(y = 0.01),
+        size = 4,
+        inherit.aes = FALSE
+        ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # coord_cartesian(xlim = c(0, 500) ) +
-    # scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 4) ) +
-    # scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 4) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
         title = "Simulating the distribution of RTs and MTs",
-        # subtitle = "Reaction time can be defined as the time between stimulus onset and when the balance crosses the execution or imagery threshold.",
-        x = "Reaction/Movement time (in ms)",
+        x = "Reaction/Movement time (a.u.)",
         y = "Probability density"
         )
 
+# combining the plots
 p1 + p2 + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # saving the plot
-# ggsave(
-#     filename = "figures/RT_MT_EE_new_balance_function.png",
-#     width = 16, height = 8, dpi = 300,
-#     device = "png"
-#     )
+ggsave(
+    filename = "model_output.png",
+    width = 16, height = 8, dpi = 300,
+    device = "png"
+    )
