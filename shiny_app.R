@@ -1,10 +1,10 @@
 #########################################################################
 # Shiny app to explore the model of activation/inhibition patterns      #
-# during motor imagery and action-mode switching paradigms              #                             #
+# during motor imagery and action-mode switching paradigms              #
 # --------------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                        #
 # E-mail: ladislas.nalborczyk@gmail.com                                 #
-# Last update: March 6, 2023                                            #
+# Last update: March 7, 2023                                            #
 #########################################################################
 
 library(shinyhelper)
@@ -42,7 +42,7 @@ ui <- fluidPage(
                 inputId = "activation_beta",
                 label = "Peak time of the activation curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.5, step = 0.01
+                min = 0, max = 2, value = 0.2, step = 0.01
                 ),
             sliderInput(
                 inputId = "activation_lambda",
@@ -60,7 +60,7 @@ ui <- fluidPage(
                 inputId = "inhibition_beta",
                 label = "Peak time of the inhibition curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.5, step = 0.01
+                min = 0, max = 2, value = 0.2, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_lambda",
@@ -78,7 +78,7 @@ ui <- fluidPage(
                 inputId = "inhibition_previous_beta",
                 label = "Peak time of the inhibition curve (in the previous trial)",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.5, step = 0.01
+                min = 0, max = 2, value = 0.2, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_previous_lambda",
@@ -306,18 +306,17 @@ server <- function(input, output) {
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")
                 ) +
             geom_text(
-                aes(x = (unique(onset) + unique(mt) ) / 2, y = input$imag_threshold + 0.1, label = unique(mt) )
+                aes(x = unique(onset) + unique(mt) / 2, y = input$imag_threshold + 0.1, label = unique(mt) )
                 ) +
             geom_text(
                 aes(x = unique(onset) / 2, y = input$imag_threshold + 0.1, label = unique(onset) )
                 ) +
-            # coord_cartesian(xlim = c(0, 20), ylim = c(0, 1) ) +
+            coord_cartesian(ylim = c(0, 2) ) +
             theme_bw(base_size = 14, base_family = "Open Sans") +
             scale_colour_manual(values = met.brewer(name = "Johnson", n = 3) ) +
             labs(
                 title = "Simulating average RTs and MTs in imagined trials",
-                # subtitle = "Activation/inhibition balance is defined as activation_current / (inhibition_current + inhibition_previous)^2",
-                x = "Time within a trial (a.u.)",
+                x = "Time within a trial (in seconds)",
                 y = "Activation/inhibition (a.u.)",
                 colour = "",
                 fill = ""
@@ -364,18 +363,17 @@ server <- function(input, output) {
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")
                 ) +
             geom_text(
-                aes(x = (unique(onset) + unique(mt) ) / 2, y = input$exec_threshold + 0.1, label = unique(mt) )
+                aes(x = unique(onset) + unique(mt) / 2, y = input$exec_threshold + 0.1, label = unique(mt) )
                 ) +
             geom_text(
                 aes(x = unique(onset) / 2, y = input$exec_threshold + 0.1, label = unique(onset) )
                 ) +
-            # coord_cartesian(xlim = c(0, 20), ylim = c(0, 1) ) +
+            coord_cartesian(ylim = c(0, 2) ) +
             theme_bw(base_size = 14, base_family = "Open Sans") +
             scale_colour_manual(values = met.brewer(name = "Johnson", n = 3) ) +
             labs(
                 title = "Simulating average RTs and MTs in executed trials",
-                # subtitle = "Activation/inhibition balance is defined as activation_current / (inhibition_current + inhibition_previous)^2",
-                x = "Time within a trial (a.u.)",
+                x = "Time within a trial (in seconds)",
                 y = "Activation/inhibition (a.u.)",
                 colour = "",
                 fill = ""
