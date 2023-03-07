@@ -6,9 +6,6 @@
 # Last updated on March 7, 2023         #
 #########################################
 
-# loading packages
-library(tidyverse)
-
 # importing the data-generating model
 source(file = "model.R")
 
@@ -28,17 +25,22 @@ df <- model(
     distinct() %>%
     dplyr::select(-sim)
 
-# plotting it
+# plotting the distributions of RTs and MTs
 hist(x = df$reaction_time, breaks = "FD")
 hist(x = df$movement_time, breaks = "FD")
 
 # fitting the model
-# nlminb false convergence: https://stackoverflow.com/questions/40039114/r-nlminb-what-does-false-convergence-actually-mean
+# maybe see also the fitdistr package...
+# https://stackoverflow.com/questions/29897756/how-to-define-your-own-distribution-for-fitdistr-function-in-r-with-the-help-of
 fitting_results_optim <- model_fitting(data = df, method = "optim")
-fitting_results_optim # 0 is successful convergence, 1 is maxit is reached
+fitting_results_optim # 0 is successful convergence, 1 when maxit is reached...
 
 fitting_results_nlminb <- model_fitting(data = df, method = "nlminb")
-fitting_results_nlminb # X-convergence (3)...
+fitting_results_nlminb # X-convergence (3)... + NAs produced in rnorm...
 
 fitting_results_optimx <- model_fitting(data = df, method = "optimx")
 fitting_results_optimx # maxit reached for Nelder-Mead...
+
+# fitting_results <- model_fitting(data = df, method = "bobyqa")
+fitting_results <- model_fitting(data = df, method = "Nelder-Mead")
+fitting_results

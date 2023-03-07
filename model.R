@@ -11,6 +11,7 @@
 library(tidyverse)
 library(patchwork)
 library(MetBrewer)
+library(optimx)
 
 # In neuroscience, the distribution of firing rates across a population of
 # neurons is often approximately log-normal (as summarised by Wikipedia).
@@ -87,16 +88,16 @@ model <- function (
         # results$imag_threshold[results$sim == i] <- imag_threshold
         
         # adding some variability in the other parameters
-        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.1)
-        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.1)
+        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.05)
+        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.05)
         curvature_activ_sim <- rnorm(n = 1, mean = curvature_activ, sd = 0.01)
         
-        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.1)
-        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.1)
+        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.05)
+        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.05)
         curvature_inhib_sim <- rnorm(n = 1, mean = curvature_inhib, sd = 0.01)
         
-        amplitude_inhib_prev_sim <- rnorm(n = 1, mean = amplitude_inhib_prev, sd = 0.1)
-        peak_time_inhib_prev_sim <- rnorm(n = 1, mean = peak_time_inhib_prev, sd = 0.1)
+        amplitude_inhib_prev_sim <- rnorm(n = 1, mean = amplitude_inhib_prev, sd = 0.05)
+        peak_time_inhib_prev_sim <- rnorm(n = 1, mean = peak_time_inhib_prev, sd = 0.05)
         curvature_inhib_prev_sim <- rnorm(n = 1, mean = curvature_inhib_prev, sd = 0.01)
         
         # storing activation values for this simulation

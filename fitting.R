@@ -6,9 +6,6 @@
 # Last updated on March 7, 2023          #
 ##########################################
 
-library(tidyverse)
-library(optimx)
-
 # importing the data-generating model
 source(file = "model.R")
 
@@ -19,18 +16,7 @@ loss_function <- function (
         exec_threshold = 1, imag_threshold = 0.5, iti = 2
         ) {
     
-    # retrieving the parameters
-    # amplitude_activ <- par[[1]]
-    # peak_time_activ <- par[[2]]
-    # curvature_activ <- par[[3]]
-    # amplitude_inhib <- par[[4]]
-    # peak_time_inhib <- par[[5]]
-    # curvature_inhib <- par[[6]]
-    # amplitude_inhib_prev <- par[[7]]
-    # peak_time_inhib_prev <- par[[8]]
-    # curvature_inhib_prev <- par[[9]]
-    
-    # simulating data from the data-generating model
+    # simulating some data from the data-generating model
     results <- model(
         nsims = nsims, nsamples = nsamples,
         exec_threshold = exec_threshold, imag_threshold = imag_threshold, iti = iti,
@@ -48,17 +34,13 @@ loss_function <- function (
     # retrieving distribution of simulated RTs
     predicted_rt <- results %>%
         dplyr::select(sim, rt = onset_imag) %>%
-        # group_by(sim) %>%
         distinct() %>%
-        # ungroup() %>%
         pull(rt)
     
     # retrieving distribution of simulated MTs
     predicted_mt <- results %>%
         dplyr::select(sim, mt = mt_imag) %>%
-        # group_by(sim) %>%
         distinct() %>%
-        # ungroup() %>%
         pull(mt)
     
     # computing the RMSE (combining RTs and MTs predictions)
@@ -72,33 +54,41 @@ loss_function <- function (
     
 }
 
-model_fitting <- function (data, method = c("nlminb", "optim", "optimx") ) {
+# fitting the model
+model_fitting <- function (
+        data,
+        method = c("nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa")
+        ) {
     
     if (method == "nlminb") {
         
         fit <- stats::nlminb(
-            start = c(1.5, 0.5, 0.4, 1.5, 0.5, 0.6, 1.5, 0.5, 0.6),
+            start = c(1.5, 0.5, 0.5, 1.5, 0.5, 0.5, 1.5, 0.5, 0.5),
             objective = loss_function,
             data = data,
             lower = c(0, 0, 0, 0, 0, 0, 0, 0, 0),
-            upper = c(3, 3, 3, 3, 3, 3, 3, 3, 3)
+            upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf)
             )
         
-        } else if (method == "optim") {
+        } else if (method == "SANN") {
         
+            # https://stat.ethz.ch/R-manual/R-devel/library/stats/html/optim.html
             fit <- stats::optim(
-                par = c(1.5, 0.5, 0.4, 1.5, 0.5, 0.6, 1.5, 0.5, 0.6),
+                par = c(1.5, 0.5, 0.5, 1.5, 0.5, 0.5, 1.5, 0.5, 0.5),
                 fn = loss_function,
                 data = data,
-                method = "Nelder-Mead"
+                method = method,
+                control = list(trace = 2)
                 )
         
-        } else if (method == "optimx") {
+        } else if (method %in% c("Nelder-Mead", "CG", "BFGS", "bobyqa") ) {
             
             fit <- optimx::optimx(
-                par = c(1.5, 0.5, 0.4, 1.5, 0.5, 0.6, 1.5, 0.5, 0.6),
+                par = c(1.5, 0.5, 0.5, 1.5, 0.5, 0.5, 1.5, 0.5, 0.5),
                 fn = loss_function,
-                data = data
+                data = data,
+                method = method,
+                control = list(trace = 2)
                 )
             
         }
