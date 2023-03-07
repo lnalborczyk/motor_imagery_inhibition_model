@@ -13,15 +13,18 @@ library(patchwork)
 library(MetBrewer)
 
 # In neuroscience, the distribution of firing rates across a population of
-# neurons is often approximately log-normal.
-# For alternative parametrisations,
-# see also https://en.wikipedia.org/wiki/Log-normal_distribution
+# neurons is often approximately log-normal (as summarised by Wikipedia).
+# For alternative parametrisations of the lognormal distribution,
+# see https://en.wikipedia.org/wiki/Log-normal_distribution
 
 #############################################################################
 # General function - Parameters
 # ----------------------------------------------------------------------
 # nsims: number of random walks (number of simulations/experiments)
-# nsamples: number of times evidence is being sampled
+# nsamples: number of samples (time steps) within a trial
+# exec_threshold: motor execution threshold
+# threshold_prop: motor imagery threshold
+# iti: inter-trial time interval (in seconds)
 # amplitude_activ: amplitude of the activation function
 # peak_time_activ: peak time of the activation function
 # curvature_activ: curvature of the activation function
@@ -31,18 +34,9 @@ library(MetBrewer)
 # amplitude_inhib_prev: amplitude of the inhibition function (in the previous trial)
 # peak_time_inhib_prev: peak time of the inhibition function (in the previous trial)
 # curvature_inhib_prev: curvature of the inhibition function (in the previous trial)
-# exec_threshold: motor execution threshold
-# threshold_prop: motor imagery threshold
-# iti: inter-trial time interval (in seconds)
 #################################################################
 
-# nsims = 1e2; nsamples = 1e3;
-# exec_threshold = 1; imag_threshold = 0.5; iti = 2;
-# amplitude_activ = 1.5; peak_time_activ = 0.5; curvature_activ = 0.4;
-# amplitude_inhib = 1.5; peak_time_inhib = 0.5; curvature_inhib = 0.6;
-# amplitude_inhib_prev = 1.5; peak_time_inhib_prev = 0.5; curvature_inhib_prev = 0.6;
-
-data_model <- function (
+model <- function (
         nsims = 1e2, nsamples = 1e3,
         exec_threshold = 1, imag_threshold = 0.5, iti = 2,
         amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,

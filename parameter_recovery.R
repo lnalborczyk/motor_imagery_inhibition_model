@@ -1,13 +1,13 @@
-######################################################################
-# Parameter recovery study
-# ---------------------------------------------------------------
-# Written by Ladislas Nalborczyk
-# E-mail: ladislas.nalborczyk@gmail.com
-# Last updated on March 7, 2023
-##############################################################
+#########################################
+# Parameter recovery study              #
+# ------------------------------------- #
+# Written by Ladislas Nalborczyk        #
+# E-mail: ladislas.nalborczyk@gmail.com #
+# Last updated on March 7, 2023         #
+#########################################
 
+# loading packages
 library(tidyverse)
-library(optimx)
 
 # importing the data-generating model
 source(file = "model.R")
@@ -16,14 +16,14 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # simulating some data in II sequences
-df <- data_model(
+df <- model(
     nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-    amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4,
-    amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6,
-    amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 0.6
+    amplitude_activ = 2, peak_time_activ = 0.5, curvature_activ = 0.4,
+    amplitude_inhib = 2, peak_time_inhib = 0.5, curvature_inhib = 0.6,
+    amplitude_inhib_prev = 0.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 0.6
     ) %>%
-    # keeping only imagery RTs and MTs
+    # keeping only imagery RTs and MTs (for testing purposes)
     dplyr::select(sim, reaction_time = onset_imag, movement_time = mt_imag) %>%
     distinct() %>%
     dplyr::select(-sim)
@@ -34,14 +34,11 @@ hist(x = df$movement_time, breaks = "FD")
 
 # fitting the model
 # nlminb false convergence: https://stackoverflow.com/questions/40039114/r-nlminb-what-does-false-convergence-actually-mean
-# optim: 1.4708039 0.2176587 0.1382920 1.4811972 0.6864347 1.4191866 1.5887577 0.6667401 1.6074987
-# nlminb: 1.5004106 0.5022626 0.8020432 1.5007183 0.5004915 1.2005765 1.5005622 0.5018178 1.2010502
 fitting_results_optim <- model_fitting(data = df, method = "optim")
 fitting_results_optim # 0 is successful convergence, 1 is maxit is reached
-fitting_results_optim$par
 
 fitting_results_nlminb <- model_fitting(data = df, method = "nlminb")
 fitting_results_nlminb # X-convergence (3)...
 
 fitting_results_optimx <- model_fitting(data = df, method = "optimx")
-fitting_results_optimx
+fitting_results_optimx # maxit reached for Nelder-Mead...

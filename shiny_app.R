@@ -1,11 +1,11 @@
-#########################################################################
-# Shiny app to explore the model of activation/inhibition patterns      #
-# during motor imagery and action-mode switching paradigms              #
-# --------------------------------------------------------------------- #
-# Written by Ladislas Nalborczyk                                        #
-# E-mail: ladislas.nalborczyk@gmail.com                                 #
-# Last update: March 7, 2023                                            #
-#########################################################################
+####################################################################
+# Shiny app to explore the model of activation/inhibition patterns #
+# during motor imagery and action-mode switching paradigms         #
+# ---------------------------------------------------------------- #
+# Written by Ladislas Nalborczyk                                   #
+# E-mail: ladislas.nalborczyk@gmail.com                            #
+# Last update: March 7, 2023                                       #
+####################################################################
 
 library(shinyhelper)
 library(tidyverse)
