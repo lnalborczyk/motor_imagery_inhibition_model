@@ -232,7 +232,7 @@ model <- function (
 #     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
 #     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
 #     labs(
-#         title = "Simulating the distribution of RTs and MTs",
+#         title = "Simulating the implied distribution of RTs and MTs",
 #         x = "Reaction/Movement time (in seconds)",
 #         y = "Probability density"
 #         )

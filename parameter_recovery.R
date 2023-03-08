@@ -29,9 +29,10 @@ df <- model(
 hist(x = df$reaction_time, breaks = "FD")
 hist(x = df$movement_time, breaks = "FD")
 
-# fitting the model using the "bobyqa" optimiser
-# fitting_results <- model_fitting(data = df, method = "bobyqa")
+# fitting the model using some optimiser (e.g., bobyqa)
+# fitting_results <- model_fitting(data = df, method = "SANN")
+# fitting_results
 
-# fitting the model using all available methods in optimx::optimx()
+# fitting the model using all methods available in optimx::optimx()
 fitting_results <- model_fitting(data = df, method = "all_methods")
 fitting_results

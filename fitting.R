@@ -1,13 +1,30 @@
 ##########################################
 # Fitting the model                      #
 # -------------------------------------- #
-# Written by Ladislas Nalborczyk.        #
+# Written by Ladislas Nalborczyk         #
 # E-mail: ladislas.nalborczyk@gmail.com  #
 # Last updated on March 8, 2023          #
 ##########################################
 
 # importing the data-generating model
-source(file = "model.R")
+# source(file = "model.R")
+
+# for testing purposes
+# par = c(0.5, 0.5, 0.5)
+# nsims = 100; nsamples = 2000; exec_threshold = 1; imag_threshold = 0.5; iti = 2;
+
+# simulating some data in II sequences
+# data <- model(
+#     nsims = 100, nsamples = 2000,
+#     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
+#     amplitude_activ = 2, peak_time_activ = 0.5, curvature_activ = 0.4,
+#     amplitude_inhib = 2, peak_time_inhib = 0.5, curvature_inhib = 0.6,
+#     amplitude_inhib_prev = 2, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 0.6
+#     ) %>%
+#     # keeping only imagery RTs and MTs (for testing purposes)
+#     dplyr::select(sim, reaction_time = onset_imag, movement_time = mt_imag) %>%
+#     distinct() %>%
+#     dplyr::select(-sim)
 
 # simulating some data and computing the prediction error
 loss_function <- function (
@@ -23,9 +40,9 @@ loss_function <- function (
     amplitude_inhib <- 2 # par[[4]]
     peak_time_inhib <- 0.5 # par[[5]]
     curvature_inhib <- 0.6 # par[[6]]
-    amplitude_inhib_prev <- 2
-    peak_time_inhib_prev <- 0.5
-    curvature_inhib_prev <- 0.6
+    amplitude_inhib_prev <- 2 # par[[7]]
+    peak_time_inhib_prev <- 0.5 # par[[8]]
+    curvature_inhib_prev <- 0.6 # par[[9]]
     
     # simulating some data from the data-generating model
     results <- model(
@@ -46,28 +63,26 @@ loss_function <- function (
     predicted_rt <- results %>%
         dplyr::select(sim, rt = onset_imag) %>%
         distinct() %>%
-        pull(rt)
+        pull(rt) %>%
+        # replacing NAs with 0s? or with a very large value?
+        replace_na(0)
     
     # retrieving distribution of simulated MTs
     predicted_mt <- results %>%
         dplyr::select(sim, mt = mt_imag) %>%
         distinct() %>%
-        pull(mt)
+        pull(mt) %>%
+        # replacing NAs with 0s? or with a very large value?
+        replace_na(0)
     
     # computing the RMSE (combining RTs and MTs predictions)
+    # not such a good idea, should rather use the distribution's shape...
     # prediction_error <- sqrt(
     #     mean((data$reaction_time - predicted_rt)^2) +
     #     mean((data$movement_time - predicted_mt)^2)
     #     )
     
-    # or using a quantile-based loss? e.g., from Servant et al. (2015)
-    # for instance quantiles (0.1, 0.3, 0.5, 0.7, 0.9)
-    # those values were compared against data through a G 2 likelihood ratio statistic (Ratcliff and Smith, 2004)
-    # observed and predicted proportions of responses in some (quantile) bin
-    # g2_loss <- 2 * (sum(observed_quantile * log(observed_quantile / predicted_quantile) ) )
-    # predicted_rt_quantiles <- quantile(x = predicted_rt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9) )
-    # predicted_mt_quantiles <- quantile(x = predicted_mt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9) )
-    
+    # quantile-based loss function (e.g., Ratcliff & Smith, 2004)
     find_quantiles_props <- function(x, quants) {
         
         quants2 <- c(0, quants, Inf) %>% as.numeric()
@@ -95,7 +110,7 @@ loss_function <- function (
     predicted_rt_quantiles_props <- find_quantiles_props(x = predicted_rt, quants = observed_rt_quantiles)
     predicted_mt_quantiles_props <- find_quantiles_props(x = predicted_mt, quants = observed_mt_quantiles)
     
-    # applies a small correction to avoid Inf g-square
+    # applies a small correction when prop = 0 to avoid negative or Inf g-square
     predicted_rt_quantiles_props <- ifelse(
         test = predicted_rt_quantiles_props == 0,
         yes = predicted_rt_quantiles_props + 0.001,
@@ -105,7 +120,7 @@ loss_function <- function (
     # makes sure proportions sum to 1
     predicted_rt_quantiles_props <- predicted_rt_quantiles_props / sum(predicted_rt_quantiles_props)
     
-    # applies a small correction to avoid Inf g-square
+    # applies a small correction when prop = 0 to avoid negative or Inf g-square
     predicted_mt_quantiles_props <- ifelse(
         test = predicted_mt_quantiles_props == 0,
         yes = predicted_mt_quantiles_props + 0.001,
@@ -115,14 +130,15 @@ loss_function <- function (
     # makes sure proportions sum to 1
     predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
     
+    # computes the prediction error (combined for RTs and MTs)
     prediction_error <- 2 * (
         # error for RTs
-        sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) )
+        sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
             # error for MTs
-            # + sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
+            sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
         )
     
-    # returning the prediction error
+    # returns the prediction error
     return (prediction_error)
     
 }
@@ -136,18 +152,17 @@ model_fitting <- function (
     if (method == "nlminb") {
         
         fit <- stats::nlminb(
-            start = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5), # , 0.5, 0.5, 0.5),
+            start = c(1, 1, 1), # 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
             objective = loss_function,
             data = data,
-            lower = c(0, 0, 0, 0, 0, 0), # 0, 0, 0),
-            upper = c(Inf, Inf, Inf, Inf, Inf, Inf) # , Inf, Inf, Inf)
+            lower = c(0, 0, 0), # 0, 0, 0, 0, 0, 0),
+            upper = c(3, 3, 3) # , 3, 3, 3, 3, 3, 3
             )
         
         } else if (method == "SANN") {
         
-            # https://stat.ethz.ch/R-manual/R-devel/library/stats/html/optim.html
             fit <- stats::optim(
-                par = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
+                par = c(1, 1, 1), # 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
                 fn = loss_function,
                 data = data,
                 method = method,
@@ -157,19 +172,19 @@ model_fitting <- function (
         } else if (method %in% c("Nelder-Mead", "CG", "BFGS", "bobyqa") ) {
             
             fit <- optimx::optimx(
-                par = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
+                par = c(1, 1, 1), # , 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
                 fn = loss_function,
                 data = data,
                 method = method,
-                lower = c(0, 0, 0, 0, 0, 0), # 0, 0, 0),
-                upper = c(3, 3, 3, 3, 3, 3), # 3, 3, 3),
+                lower = c(0, 0, 0), #, 0, 0, 0), # 0, 0, 0),
+                upper = c(3, 3, 3), #, 3, 3, 3), # 3, 3, 3),
                 control = list(trace = 2)
                 )
             
         } else if (method == "all_methods") {
             
             fit <- optimx::optimx(
-                par = c(0.5, 0.5, 0.5), # , 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
+                par = c(1, 1, 1), # , 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
                 fn = loss_function,
                 data = data,
                 lower = c(0, 0, 0), # , 0, 0, 0), # 0, 0, 0),
