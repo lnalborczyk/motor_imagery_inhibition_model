@@ -5,7 +5,7 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 7, 2023                               #
+# Last updated on March 8, 2023                               #
 ###############################################################
 
 library(tidyverse)
@@ -13,8 +13,6 @@ library(patchwork)
 library(MetBrewer)
 library(optimx)
 
-# In neuroscience, the distribution of firing rates across a population of
-# neurons is often approximately log-normal (as summarised by Wikipedia).
 # For alternative parametrisations of the lognormal distribution,
 # see https://en.wikipedia.org/wiki/Log-normal_distribution
 
@@ -133,6 +131,7 @@ model <- function (
     # implied distributions of RTs and MTs
     results <- results %>%
         group_by(sim) %>%
+        # mutate(balance = activation / inhibition_previous) %>%
         mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
         mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
