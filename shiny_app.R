@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                   #
 # E-mail: ladislas.nalborczyk@gmail.com                            #
-# Last update: March 8, 2023                                       #
+# Last update: March 9, 2023                                       #
 ####################################################################
 
 library(shinyhelper)
@@ -119,7 +119,6 @@ server <- function(input, output) {
     output$distPlot <- renderPlot({
         
         # defining the activation function for the current trial
-        # https://en.wikipedia.org/wiki/Gaussian_function
         activation <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8) {
             
             activ <- amplitude * exp(-(log(time * 5) - peak_time)^2 / (2 * curvature^2) )
@@ -165,7 +164,9 @@ server <- function(input, output) {
             # computing the balance
             balance_output <- activation(time = time, amplitude = activation_amplitude, peak_time = activation_peak_time, curvature = activation_curvature) /
                 (inhibition(time = time, amplitude = inhibition_amplitude, peak_time = inhibition_peak_time, curvature = inhibition_curvature) +
-                     inhibition_previous(time = time, amplitude = inhibition_previous_amplitude, peak_time = inhibition_previous_peak_time, curvature = inhibition_previous_curvature, delay = delay) )
+                     inhibition_previous(time = time, amplitude = inhibition_previous_amplitude, peak_time = inhibition_previous_peak_time, curvature = inhibition_previous_curvature, delay = delay)
+                     # balance_previous(time = time, inhibition_previous_amplitude = inhibition_previous_amplitude, inhibition_previous_peak_time = inhibition_previous_peak_time, inhibition_previous_curvature = inhibition_previous_curvature, delay = delay)
+                 )
             
             return (balance_output)
             
@@ -174,27 +175,27 @@ server <- function(input, output) {
         # computing the balance (activation/inhibition) from the previous trial
         balance_previous <- function (
             time = 0, delay = 10,
-            activation_amplitude = 1.5, activation_peak_time = 0.5, activation_curvature = 0.8, 
-            inhibition_amplitude = 1.5, inhibition_peak_time = 0.5, inhibition_curvature = 1.2,
-            inhibition_previous_amplitude = 1.5, inhibition_previous_peak_time = 0.5, inhibition_previous_curvature = 1.2
+            activation_amplitude = 1.5, activation_peak_time = 0.5, activation_curvature = 0.4, 
+            inhibition_amplitude = 1.5, inhibition_peak_time = 0.5, inhibition_curvature = 0.6,
+            inhibition_previous_amplitude = 1.5, inhibition_previous_peak_time = 0.5, inhibition_previous_curvature = 0.6
             ) {
             
             # computing the balance
-            balance_output <- activation_previous(time = time, amplitude = activation_amplitude, peak_time = activation_peak_time, curvature = activation_curvature) /
-                inhibition_previous(time = time, amplitude = inhibition_amplitude, peak_time = inhibition_peak_time, curvature = inhibition_curvature)
+            balance_output <- activation_previous(time = time, amplitude = activation_amplitude, peak_time = activation_peak_time, curvature = activation_curvature, delay = delay) /
+                inhibition_previous(time = time, amplitude = inhibition_previous_amplitude, peak_time = inhibition_previous_peak_time, curvature = inhibition_previous_curvature, delay = delay)
             
             return (balance_output)
             
         }
         
         # computing the amplitude of inhibition_previous at t = 0
-        t0_inhibition_previous <- inhibition_previous(
-            time = 0,
-            amplitude = input$inhibition_previous_alpha,
-            peak_time = input$inhibition_previous_beta,
-            curvature = input$inhibition_previous_lambda,
-            delay = input$delay
-            )
+        # t0_inhibition_previous <- inhibition_previous(
+        #     time = 0,
+        #     amplitude = input$inhibition_previous_alpha,
+        #     peak_time = input$inhibition_previous_beta,
+        #     curvature = input$inhibition_previous_lambda,
+        #     delay = input$delay
+        #     )
             
         # plotting it
         p1 <- data.frame(x = c(0, 2) ) %>%
@@ -230,21 +231,32 @@ server <- function(input, output) {
                     delay = input$delay
                     )
                 ) +
-            # stat_function(
-            #     fun = inhibition_previous, color = "orangered", linewidth = 1, lty = 2,
-            #     args = list(amplitude = 1.5)
-            #     ) +
             stat_function(
                 fun = balance,
-                color = "steelblue", linewidth = 1, lty = 2,
+                color = "steelblue", linewidth = 1,
                 args = list(
                     activation_amplitude = input$activation_alpha,
                     activation_peak_time = input$activation_beta,
-                    # activation_peak_time = t0_inhibition_previous,
                     activation_curvature = input$activation_lambda,
                     inhibition_amplitude = input$inhibition_alpha,
                     inhibition_peak_time = input$inhibition_beta,
                     inhibition_curvature = input$inhibition_lambda,
+                    inhibition_previous_amplitude = input$inhibition_previous_alpha,
+                    inhibition_previous_peak_time = input$inhibition_previous_beta,
+                    inhibition_previous_curvature = input$inhibition_previous_lambda,
+                    delay = input$delay
+                    )
+                ) +
+            stat_function(
+                fun = balance_previous,
+                color = "steelblue", linewidth = 1, lty = 2,
+                args = list(
+                    # activation_amplitude = input$activation_alpha,
+                    # activation_peak_time = input$activation_beta,
+                    # activation_curvature = input$activation_lambda,
+                    # inhibition_amplitude = input$inhibition_alpha,
+                    # inhibition_peak_time = input$inhibition_beta,
+                    # inhibition_curvature = input$inhibition_lambda,
                     inhibition_previous_amplitude = input$inhibition_previous_alpha,
                     inhibition_previous_peak_time = input$inhibition_previous_beta,
                     inhibition_previous_curvature = input$inhibition_previous_lambda,
@@ -287,14 +299,13 @@ server <- function(input, output) {
                 imag_threshold = input$imag_threshold
                 ) %>%
             mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-            # mutate(balance_square = activation / (inhibition + inhibition_previous)^2) %>%
             mutate(onset = x[which(balance > imag_threshold) %>% first()]) %>%
             mutate(offset = x[which(balance > imag_threshold) %>% last()]) %>%
             mutate(mt = offset - onset) %>%
             ggplot(aes(x = x) ) +
             geom_hline(yintercept = input$imag_threshold, linetype = 2) +
             # geom_hline(yintercept = input$exec_threshold, linetype = 2) +
-            geom_line(aes(y = balance), col = "steelblue", linewidth = 1, lty = 2) +
+            geom_line(aes(y = balance), col = "steelblue", linewidth = 1) +
             geom_segment(
                 aes(x = 0, y = input$imag_threshold, xend = unique(onset), yend = input$imag_threshold),
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")
@@ -351,7 +362,7 @@ server <- function(input, output) {
             ggplot(aes(x = x) ) +
             geom_hline(yintercept = input$imag_threshold, linetype = 2) +
             geom_hline(yintercept = input$exec_threshold, linetype = 2) +
-            geom_line(aes(y = balance), col = "steelblue", linewidth = 1, lty = 2) +
+            geom_line(aes(y = balance), col = "steelblue", linewidth = 1) +
             geom_segment(
                 aes(x = 0, y = input$exec_threshold, xend = unique(onset), yend = input$exec_threshold),
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")

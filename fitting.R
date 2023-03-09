@@ -21,14 +21,14 @@ loss_function <- function (
     
     # retrieving parameter values
     amplitude_activ <- par[[1]]
-    peak_time_activ <- 0.5 # par[[2]]
-    curvature_activ <- 0.4 # par[[3]]
+    peak_time_activ <- 0.5
+    curvature_activ <- 0.4
     amplitude_inhib <- par[[2]]
-    peak_time_inhib <- 0.5 # par[[4]]
-    curvature_inhib <- 0.6 # par[[6]]
+    peak_time_inhib <- 0.5
+    curvature_inhib <- 0.4
     amplitude_inhib_prev <- par[[3]]
-    peak_time_inhib_prev <- 0.5 # par[[8]]
-    curvature_inhib_prev <- 0.6 # par[[9]]
+    peak_time_inhib_prev <- 0.5
+    curvature_inhib_prev <- 0.6
     
     # simulating some data from the data-generating model
     results <- model(
@@ -185,7 +185,7 @@ model_fitting <- function (
     if (method == "SANN") {
         
         fit <- stats::optim(
-            par = c(1, 1, 1),
+            par = c(1, 1, 1, 1, 1, 1),
             fn = loss_function,
             data = data,
             method = method,
@@ -197,9 +197,9 @@ model_fitting <- function (
             fit <- GenSA::GenSA(
                 fn = loss_function,
                 data = data,
-                par = c(1, 1, 1),
-                lower = c(0, 0, 0),
-                upper = c(3, 3, 3),
+                par = c(1, 1, 1, 1, 1, 1),
+                lower = c(0, 0, 0, 0, 0, 0),
+                upper = c(3, 3, 3, 3, 3, 3),
                 control = list(maxit = maxit, verbose = TRUE)
                 )
         
@@ -208,9 +208,9 @@ model_fitting <- function (
             fit <- pso::psoptim(
                 fn = loss_function,
                 data = df,
-                par = c(1, 1, 1),
-                lower = c(0, 0, 0),
-                upper = c(3, 3, 3),
+                par = c(1, 1, 1, 1, 1, 1),
+                lower = c(0, 0, 0, 0, 0, 0),
+                upper = c(3, 3, 3, 3, 3, 3),
                 control = list(maxit = maxit, trace = 2)
                 )
             
@@ -218,8 +218,8 @@ model_fitting <- function (
             
             fit <- DEoptim::DEoptim(
                 fn = loss_function,
-                lower = c(0, 0, 0),
-                upper = c(3, 3, 3),
+                lower = c(0, 0, 0), #, 0, 0, 0),
+                upper = c(3, 3, 3), #, 3, 3, 3),
                 control = DEoptim.control(itermax = maxit, trace = 2),
                 data = df
                 )
@@ -227,24 +227,24 @@ model_fitting <- function (
         } else if (method %in% c("Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb") ) {
             
             fit <- optimx::optimx(
-                par = c(1, 1, 1),
+                par = c(1, 1, 1, 1, 1, 1),
                 fn = loss_function,
                 data = data,
                 method = method,
-                lower = c(0, 0, 0),
-                upper = c(3, 3, 3),
+                lower = c(0, 0, 0, 0, 0, 0),
+                upper = c(3, 3, 3, 3, 3, 3),
                 control = list(maxit = maxit, trace = 2)
                 )
             
         } else if (method == "all_methods") {
             
             fit <- optimx::optimx(
-                par = c(1, 1, 1),
+                par = c(1, 1, 1, 1, 1, 1),
                 fn = loss_function,
                 data = data,
-                lower = c(0, 0, 0),
-                upper = c(3, 3, 3),
-                control = list(trace = 2, all.methods = TRUE)
+                lower = c(0, 0, 0, 0, 0, 0),
+                upper = c(3, 3, 3, 3, 3, 3),
+                control = list(maxit = maxit, trace = 2, all.methods = TRUE)
                 )
             
         }
