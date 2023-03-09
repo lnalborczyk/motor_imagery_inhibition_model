@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                   #
 # E-mail: ladislas.nalborczyk@gmail.com                            #
-# Last update: March 7, 2023                                       #
+# Last update: March 8, 2023                                       #
 ####################################################################
 
 library(shinyhelper)
@@ -22,10 +22,7 @@ ui <- fluidPage(
     
     # sets a theme
     # theme = bs_theme(),
-    theme = bs_theme(version = 4, bootswatch = "minty"),
-
-    # fluidRow(p("Important note: this application is meant to facilitate the creation of R scripts to automate sequential testing procedures. More specifically, it automatically writes around 90% of the code the user would have to write to use such a procedure. However, it is almost certain that the produced R code will not work immediately. It will require some minor tweakings from the user, such as checking the local path, making sure that the scripts and the data are in the same repository, adapting the data import step to specific properties of the data under consideration, and so on. For more information, please have a look at our tutorial paper.") ),
-    # fluidRow(h3("Step 1: Create an automation") ),
+    theme = bs_theme(bootswatch = "united"),
     
     # Sidebar panel with slider inputs
     sidebarLayout(
@@ -42,7 +39,7 @@ ui <- fluidPage(
                 inputId = "activation_beta",
                 label = "Peak time of the activation curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.2, step = 0.01
+                min = 0, max = 2, value = 1, step = 0.01
                 ),
             sliderInput(
                 inputId = "activation_lambda",
@@ -60,7 +57,7 @@ ui <- fluidPage(
                 inputId = "inhibition_beta",
                 label = "Peak time of the inhibition curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.2, step = 0.01
+                min = 0, max = 2, value = 1, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_lambda",
@@ -78,7 +75,7 @@ ui <- fluidPage(
                 inputId = "inhibition_previous_beta",
                 label = "Peak time of the inhibition curve (in the previous trial)",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.2, step = 0.01
+                min = 0, max = 2, value = 1, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_previous_lambda",
@@ -88,7 +85,7 @@ ui <- fluidPage(
                 ),
             sliderInput(
                 inputId = "delay",
-                label = "Pick a delay between two successive trials",
+                label = "Pick a delay between two successive trials (in seconds)",
                 # pre = "<i>&lambda;</i> = ",
                 min = 0, max = 10, step = 0.1, value = 5
                 ),
@@ -116,6 +113,7 @@ ui <- fluidPage(
 # server logic
 server <- function(input, output) {
     
+    # interactive theme customisation
     # bs_themer()
 
     output$distPlot <- renderPlot({
@@ -124,7 +122,7 @@ server <- function(input, output) {
         # https://en.wikipedia.org/wiki/Gaussian_function
         activation <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8) {
             
-            activ <- amplitude * exp(-(log(time) - peak_time)^2 / (2 * curvature^2) )
+            activ <- amplitude * exp(-(log(time * 5) - peak_time)^2 / (2 * curvature^2) )
             
             return (activ)
             
@@ -133,7 +131,7 @@ server <- function(input, output) {
         # defining the activation function for the previous trials
         activation_previous <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8, delay = 10) {
             
-            activ <- amplitude * exp(-(log(delay + time) - peak_time)^2 / (2 * curvature^2) )
+            activ <- amplitude * exp(-(log(delay + time * 5) - peak_time)^2 / (2 * curvature^2) )
             
             return (activ)
             
@@ -142,7 +140,7 @@ server <- function(input, output) {
         # defining the inhibition function for the current trial
         inhibition <- function (time = 0, amplitude = 2, peak_time = 0.5, curvature = 1.2) {
             
-            inhib <- amplitude * exp(-(log(time) - peak_time)^2 / (2 * curvature^2) )
+            inhib <- amplitude * exp(-(log(time * 5) - peak_time)^2 / (2 * curvature^2) )
             
             return (inhib)
             
@@ -150,7 +148,7 @@ server <- function(input, output) {
         
         inhibition_previous <- function (time = 0, amplitude = 2, peak_time = 0.5, curvature = 1.2, delay = 10) {
             
-            inhib <- amplitude * exp(-(log(delay + time) - peak_time)^2 / (2 * curvature^2) )
+            inhib <- amplitude * exp(-(log(delay + time * 5) - peak_time)^2 / (2 * curvature^2) )
             
             return (inhib)
             
@@ -199,7 +197,7 @@ server <- function(input, output) {
             )
             
         # plotting it
-        p1 <- data.frame(x = c(0, 10) ) %>%
+        p1 <- data.frame(x = c(0, 2) ) %>%
             ggplot(aes(x = x) ) +
             geom_hline(yintercept = input$exec_threshold, linetype = 2) +
             geom_hline(yintercept = input$imag_threshold, linetype = 2) +
@@ -258,13 +256,13 @@ server <- function(input, output) {
             labs(
                 title = "Simulating activation/inhibition patterns",
                 subtitle = "Activation/inhibition balance is defined as activation_current / (inhibition_current + inhibition_previous)",
-                x = "Time within a trial (a.u.)",
+                x = "Time within a trial (in seconds)",
                 y = "Activation/inhibition (a.u.)",
                 colour = "",
                 fill = ""
                 )
         
-        p2 <- data.frame(x = seq(0, 10, 0.01) ) %>%
+        p2 <- data.frame(x = seq(0, 2, 0.01) ) %>%
             mutate(
                 activation = activation(
                     time = x,
@@ -322,7 +320,7 @@ server <- function(input, output) {
                 fill = ""
                 )
         
-        p3 <- data.frame(x = seq(0, 10, 0.01) ) %>%
+        p3 <- data.frame(x = seq(0, 2, 0.01) ) %>%
             mutate(
                 activation = activation(
                     time = x,

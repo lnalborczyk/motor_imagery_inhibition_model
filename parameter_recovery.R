@@ -3,7 +3,7 @@
 # ------------------------------------- #
 # Written by Ladislas Nalborczyk        #
 # E-mail: ladislas.nalborczyk@gmail.com #
-# Last updated on March 8, 2023         #
+# Last updated on March 9, 2023         #
 #########################################
 
 # importing the data-generating model
@@ -29,10 +29,14 @@ df <- model(
 hist(x = df$reaction_time, breaks = "FD")
 hist(x = df$movement_time, breaks = "FD")
 
-# fitting the model using some optimiser (e.g., bobyqa)
+# fitting the model using all methods available in optimx::optimx()
+# fitting_results <- model_fitting(data = df, method = "all_methods")
+# fitting_results
+
+# fitting the model using simulated annealing (works pretty well with 1 par)
 # fitting_results <- model_fitting(data = df, method = "SANN")
 # fitting_results
 
-# fitting the model using all methods available in optimx::optimx()
-fitting_results <- model_fitting(data = df, method = "all_methods")
+# fitting the model using generalised simulated annealing (works better with 3 pars)
+fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 50)
 fitting_results

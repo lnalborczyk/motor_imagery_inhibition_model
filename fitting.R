@@ -1,34 +1,20 @@
-##########################################
-# Fitting the model                      #
-# -------------------------------------- #
-# Written by Ladislas Nalborczyk         #
-# E-mail: ladislas.nalborczyk@gmail.com  #
-# Last updated on March 8, 2023          #
-##########################################
+#############################################
+# Fitting the model                         #
+# Comparing various optimisation algorithms #
+# ----------------------------------------- #
+# Written by Ladislas Nalborczyk            #
+# E-mail: ladislas.nalborczyk@gmail.com     #
+# Last updated on March 9, 2023             #
+#############################################
 
-# importing the data-generating model
-# source(file = "model.R")
-
-# for testing purposes
-# par = c(0.5, 0.5, 0.5)
-# nsims = 100; nsamples = 2000; exec_threshold = 1; imag_threshold = 0.5; iti = 2;
-
-# simulating some data in II sequences
-# data <- model(
-#     nsims = 100, nsamples = 2000,
-#     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-#     amplitude_activ = 2, peak_time_activ = 0.5, curvature_activ = 0.4,
-#     amplitude_inhib = 2, peak_time_inhib = 0.5, curvature_inhib = 0.6,
-#     amplitude_inhib_prev = 2, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 0.6
-#     ) %>%
-#     # keeping only imagery RTs and MTs (for testing purposes)
-#     dplyr::select(sim, reaction_time = onset_imag, movement_time = mt_imag) %>%
-#     distinct() %>%
-#     dplyr::select(-sim)
+library(DEoptim) # global optimisation by differential evolution
+library(optimx) # various optimisation methods
+library(GenSA) # generalised simulated annealing
+library(pso) # particle swarm optimization
 
 # simulating some data and computing the prediction error
 loss_function <- function (
-        par, data,
+        par = c(1, 1, 1), data,
         nsims = 100, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5, iti = 2
         ) {
@@ -65,7 +51,7 @@ loss_function <- function (
         distinct() %>%
         pull(rt) %>%
         # replacing NAs with 0s? or with a very large value?
-        replace_na(0)
+        replace_na(1e6)
     
     # retrieving distribution of simulated MTs
     predicted_mt <- results %>%
@@ -73,7 +59,7 @@ loss_function <- function (
         distinct() %>%
         pull(mt) %>%
         # replacing NAs with 0s? or with a very large value?
-        replace_na(0)
+        replace_na(1e6)
     
     # computing the RMSE (combining RTs and MTs predictions)
     # not such a good idea, should rather use the distribution's shape...
@@ -138,38 +124,70 @@ loss_function <- function (
             sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
         )
     
+    # adding constraints?
+    # for instance that balance should not be above 1 in imagery trials...
+    # if (x[1] + x[2]^2 >= 2) prediction_error <- Inf # or 1e6
+        
     # returns the prediction error
     return (prediction_error)
     
 }
 
 # fitting the model
+# see https://cran.r-project.org/web/views/Optimization.html
 model_fitting <- function (
         data,
-        method = c("nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa", "all_methods")
+        method = c(
+            "SANN", "GenSA", "pso", "DEoptim", "Nelder-Mead", "BFGS",
+            "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
+            ),
+        maxit = 1e2
         ) {
     
-    if (method == "nlminb") {
+    if (method == "SANN") {
         
-        fit <- stats::nlminb(
-            start = c(1, 1, 1), # 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
-            objective = loss_function,
+        fit <- stats::optim(
+            par = c(1, 1, 1), # 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+            fn = loss_function,
             data = data,
-            lower = c(0, 0, 0), # 0, 0, 0, 0, 0, 0),
-            upper = c(3, 3, 3) # , 3, 3, 3, 3, 3, 3
+            method = method,
+            control = list(maxit = maxit, trace = 2)
             )
         
-        } else if (method == "SANN") {
-        
-            fit <- stats::optim(
-                par = c(1, 1, 1), # 0.5, 0.5, 0.5, 0.5, 0.5, 0.5),
+        } else if (method == "GenSA") {
+            
+            fit <- GenSA::GenSA(
                 fn = loss_function,
                 data = data,
-                method = method,
-                control = list(trace = 2)
+                par = c(1, 1, 1),
+                lower = c(0, 0, 0),
+                upper = c(5, 5, 5),
+                control = list(maxit = maxit, verbose = TRUE)
                 )
         
-        } else if (method %in% c("Nelder-Mead", "CG", "BFGS", "bobyqa") ) {
+        } else if (method == "pso") {
+            
+            fit <- pso::psoptim(
+                fn = loss_function,
+                data = df,
+                par = c(1, 1, 1),
+                lower = c(0, 0, 0),
+                upper = c(5, 5, 5),
+                control = list(maxit = maxit, trace = 2)
+                )
+            
+        } else if (method == "DEoptim") {
+            
+            fit <- DEoptim::DEoptim(
+                fn = loss_function,
+                #par = c(1, 1, 1),
+                lower = c(0, 0, 0),
+                upper = c(5, 5, 5),
+                control = DEoptim.control(itermax = maxit, trace = 2),
+                data = df
+                )
+            
+        } else if (method %in% c("Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb") ) {
             
             fit <- optimx::optimx(
                 par = c(1, 1, 1), # , 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
@@ -177,18 +195,18 @@ model_fitting <- function (
                 data = data,
                 method = method,
                 lower = c(0, 0, 0), #, 0, 0, 0), # 0, 0, 0),
-                upper = c(3, 3, 3), #, 3, 3, 3), # 3, 3, 3),
-                control = list(trace = 2)
+                upper = c(5, 5, 5), #, 3, 3, 3), # 3, 3, 3),
+                control = list(maxit = maxit, trace = 2)
                 )
             
         } else if (method == "all_methods") {
             
             fit <- optimx::optimx(
-                par = c(1, 1, 1), # , 0.5, 0.5, 0.5), # 0.5, 0.5, 0.5),
+                par = c(1, 1, 1), #, 1, 1, 1), # 1, 1, 1),
                 fn = loss_function,
                 data = data,
-                lower = c(0, 0, 0), # , 0, 0, 0), # 0, 0, 0),
-                upper = c(3, 3, 3), #, 3, 3, 3), # , 3, 3, 3),
+                lower = c(0, 0, 0), #, 0, 0, 0), # 0, 0, 0),
+                upper = c(5, 5, 5), #, 3, 3, 3), # 3, 3, 3),
                 control = list(trace = 2, all.methods = TRUE)
                 )
             

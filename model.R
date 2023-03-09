@@ -5,19 +5,17 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 8, 2023                               #
+# Last updated on March 9, 2023                               #
 ###############################################################
 
 library(tidyverse)
 library(patchwork)
 library(MetBrewer)
-library(optimx)
-
-# For alternative parametrisations of the lognormal distribution,
-# see https://en.wikipedia.org/wiki/Log-normal_distribution
 
 #############################################################################
 # General function - Parameters
+# For alternative parametrisations of the lognormal distribution,
+# see https://en.wikipedia.org/wiki/Log-normal_distribution
 # ----------------------------------------------------------------------
 # nsims: number of random walks (number of simulations/experiments)
 # nsamples: number of samples (time steps) within a trial
@@ -68,8 +66,8 @@ model <- function (
         sim = rep(1:nsims, each = nsamples),
         sample = rep(1:nsamples, nsims),
         time = rep(1:nsamples, nsims) / 1e3,
-        exec_threshold = exec_threshold, # numeric(length = nsims * nsamples),
-        imag_threshold = imag_threshold, # numeric(length = nsims * nsamples),
+        exec_threshold = exec_threshold,
+        imag_threshold = imag_threshold,
         activation = numeric(length = nsims * nsamples),
         inhibition = numeric(length = nsims * nsamples),
         inhibition_previous = numeric(length = nsims * nsamples)
@@ -86,21 +84,20 @@ model <- function (
         # results$imag_threshold[results$sim == i] <- imag_threshold
         
         # adding some variability in the other parameters
-        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.05)
-        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.05)
+        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.01)
+        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.01)
         curvature_activ_sim <- rnorm(n = 1, mean = curvature_activ, sd = 0.01)
         
-        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.05)
-        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.05)
+        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.01)
+        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.01)
         curvature_inhib_sim <- rnorm(n = 1, mean = curvature_inhib, sd = 0.01)
         
-        amplitude_inhib_prev_sim <- rnorm(n = 1, mean = amplitude_inhib_prev, sd = 0.05)
-        peak_time_inhib_prev_sim <- rnorm(n = 1, mean = peak_time_inhib_prev, sd = 0.05)
+        amplitude_inhib_prev_sim <- rnorm(n = 1, mean = amplitude_inhib_prev, sd = 0.01)
+        peak_time_inhib_prev_sim <- rnorm(n = 1, mean = peak_time_inhib_prev, sd = 0.01)
         curvature_inhib_prev_sim <- rnorm(n = 1, mean = curvature_inhib_prev, sd = 0.01)
         
         # storing activation values for this simulation
         results$activation[results$sim == i] <- activation_inhibition_function(
-            # time = 1:nsamples / 1e3,
             time = seq.int(from = 0, to = 5, length.out = nsamples),
             amplitude = amplitude_activ_sim,
             peak_time = peak_time_activ_sim,
@@ -109,7 +106,6 @@ model <- function (
         
         # storing inhibition values for this simulation
         results$inhibition[results$sim == i] <- activation_inhibition_function(
-            # time = 1:nsamples / 1e2,
             time = seq.int(from = 0, to = 5, length.out = nsamples),
             amplitude = amplitude_inhib_sim,
             peak_time = peak_time_inhib_sim,
@@ -118,7 +114,6 @@ model <- function (
         
         # storing inhibition values from previous trial
         results$inhibition_previous[results$sim == i] <- activation_inhibition_function(
-            # time = iti + 1:nsamples / 1e2,
             time = iti + seq.int(from = 0, to = 5, length.out = nsamples),
             amplitude = amplitude_inhib_prev_sim,
             peak_time = peak_time_inhib_prev_sim,
@@ -131,7 +126,6 @@ model <- function (
     # implied distributions of RTs and MTs
     results <- results %>%
         group_by(sim) %>%
-        # mutate(balance = activation / inhibition_previous) %>%
         mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
         mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
