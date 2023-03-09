@@ -17,7 +17,7 @@ library(MetBrewer)
 # For alternative parametrisations of the lognormal distribution,
 # see https://en.wikipedia.org/wiki/Log-normal_distribution
 # ----------------------------------------------------------------------
-# nsims: number of random walks (number of simulations/experiments)
+# nsims: number of random walks (number of simulations/trials)
 # nsamples: number of samples (time steps) within a trial
 # exec_threshold: motor execution threshold
 # threshold_prop: motor imagery threshold
