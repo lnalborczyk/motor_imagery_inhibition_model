@@ -14,19 +14,19 @@ library(pso) # particle swarm optimisation
 
 # simulating some data and computing the prediction error
 loss_function <- function (
-        par = c(1, 1, 1, 1), data,
+        par = c(1, 1), data,
         nsims = 100, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5, iti = 2
         ) {
     
     # retrieving parameter values
-    amplitude_activ <- par[[1]]
-    peak_time_activ <- par[[2]]
+    amplitude_activ <- 1.5
+    peak_time_activ <- 0.5
     curvature_activ <- 0.4
     # amplitude_inhib is expressed in % of amplitude_activ
     # peak_time_inhib is expressed in % of peak_time_activ
-    amplitude_inhib <- par[[3]] # * amplitude_activ
-    peak_time_inhib <- par[[4]] # * peak_time_activ
+    amplitude_inhib <- par[[1]] * amplitude_activ
+    peak_time_inhib <- par[[2]] * peak_time_activ
     curvature_inhib <- 0.6
     amplitude_inhib_prev <- 0.5
     peak_time_inhib_prev <- 0.5
@@ -224,12 +224,12 @@ model_fitting <- function (
             
             fit <- DEoptim::DEoptim(
                 fn = loss_function,
-                lower = c(0, 0, 0, 0), #, 0), #, 0, 0, 0),
-                upper = c(2, 2, 2, 2), #, 3), #, 3, 3, 3),
+                lower = c(0, 0), #, 0), #, 0, 0, 0),
+                upper = c(2, 2), #, 3), #, 3, 3, 3),
                 control = DEoptim.control(
                     itermax = maxit, trace = 2,
                     # defines the differential evolution strategy (defaults to 2)
-                    strategy = 6,
+                    # strategy = 6,
                     # c controls the speed of the crossover adaptation (defaults to 0)
                     # VTR = 0, c = 0.5,
                     # using all available cores

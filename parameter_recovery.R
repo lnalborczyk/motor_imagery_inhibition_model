@@ -14,17 +14,17 @@ source(file = "fitting.R")
 
 # true parameter values in EI sequences, which refers to the proportion of
 # activation amplitude for inhibition and inhibition_previous amplitudes, respectively
-true_pars <- c(1.5, 0.5, 1.5, 0.5)
+true_pars <- c(0.75, 0.75)
 
 # simulating data
 df <- model(
     nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-    amplitude_activ = true_pars[[1]],
-    peak_time_activ = true_pars[[2]],
+    amplitude_activ = 1.5,
+    peak_time_activ = 0.5,
     curvature_activ = 0.4,
-    amplitude_inhib = true_pars[[3]],
-    peak_time_inhib = true_pars[[4]],
+    amplitude_inhib = true_pars[[1]] * 1.5,
+    peak_time_inhib = true_pars[[2]] * 0.5,
     curvature_inhib = 0.6,
     amplitude_inhib_prev = 0.5,
     peak_time_inhib_prev = 0.5,
