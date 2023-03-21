@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 20, 2023             #
+# Last updated on March 21, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -12,26 +12,25 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# true parameter values in EI sequences, which refers to the proportion of
-# activation amplitude for inhibition and inhibition_previous amplitudes, respectively
-true_pars <- c(0.75, 0.75)
+# true parameter values in EI sequences
+true_pars <- c(1.5, 0.5, 1.25, 0.75)
 
 # simulating data
 df <- model(
     nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-    amplitude_activ = 1.5,
-    peak_time_activ = 0.5,
+    amplitude_activ = true_pars[1],
+    peak_time_activ = true_pars[2],
     curvature_activ = 0.4,
-    amplitude_inhib = true_pars[[1]] * 1.5,
-    peak_time_inhib = true_pars[[2]] * 0.5,
+    amplitude_inhib = true_pars[3] * true_pars[1],
+    peak_time_inhib = true_pars[4] * true_pars[2],
     curvature_inhib = 0.6,
     amplitude_inhib_prev = 0.5,
     peak_time_inhib_prev = 0.5,
     curvature_inhib_prev = 0.6
     ) %>%
     # was the action executed or imagined?
-    mutate(action_mode = ifelse(test = true_pars[1] >= 1, yes = "imagined", no = "executed") ) %>%
+    mutate(action_mode = ifelse(test = true_pars[3] >= 1, yes = "imagined", no = "executed") ) %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -52,21 +51,22 @@ df %>%
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
-# fitting the model using all methods available in optimx::optimx()
+# fitting the model using all methods available in optimx::optimx() (does not work)
 # fitting_results <- model_fitting(data = df, method = "all_methods", maxit = 1e2)
-# fitting_results
 
 # fitting the model using simulated annealing (works better but slow)
 # fitting_results <- model_fitting(data = df, method = "SANN", maxit = 1e2)
-# fitting_results
 
 # fitting the model using generalised simulated annealing (works much better but slow)
-# fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 1e2)
-# fitting_results$value
-# fitting_results$par
+fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 1e2)
 
-# fitting the model using differential evolution (seems to work best)
-fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 100)
+# fitting the model using particle swarm optimisation
+# works very well with 1e3 iterations but quite slow...
+# fitting_results <- model_fitting(data = df, method = "pso", maxit = 1e3)
+
+# fitting the model using differential evolution
+# seems to work best in short periods of time...
+# fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 500)
 
 # plotting the optimisation results
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")
@@ -74,3 +74,5 @@ fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 100)
 
 # getting a summary of the optimisation results
 summary(fitting_results)
+fitting_results$value
+fitting_results$par

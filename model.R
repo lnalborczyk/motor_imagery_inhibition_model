@@ -41,7 +41,13 @@ model <- function (
         amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2
         ) {
     
-    # defining the activation/inhibition lognormal base function
+    # defining the activation/inhibition function
+    # basically an unnormalised lognormal distribution
+    # e.g., https://www.cell.com/neuron/pdf/S0896-6273(11)00879-8.pdf
+    # https://en.wikipedia.org/wiki/Log-normal_distribution
+    # if two independent, log-normal variables are multiplied [divided],
+    # the product [ratio] is again log-normal, with parameters mu = mu_1 + mu_2
+    # [mu = mu1 − mu2] and sigma = sigma_1 + sigma_2 [sigma = sigma_1 - sigma_2]
     activation_inhibition_function <- function (
         time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
         ) {
