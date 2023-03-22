@@ -58,7 +58,7 @@ df %>%
 # fitting_results <- model_fitting(data = df, method = "SANN", maxit = 1e2)
 
 # fitting the model using generalised simulated annealing (works much better but slow)
-fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 1e2)
+# fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 1e2)
 
 # fitting the model using particle swarm optimisation
 # works very well with 1e3 iterations but quite slow...
@@ -66,7 +66,7 @@ fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 1e2)
 
 # fitting the model using differential evolution
 # seems to work best in short periods of time...
-# fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 500)
+fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 1e3)
 
 # plotting the optimisation results
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")

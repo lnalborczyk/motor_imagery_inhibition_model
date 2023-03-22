@@ -15,9 +15,12 @@ library(pso) # particle swarm optimisation
 # simulating some data and computing the prediction error
 loss_function <- function (
         par = c(1, 1, 1, 1), data,
-        nsims = 100, nsamples = 2000,
+        nsims, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5, iti = 2
         ) {
+    
+    # how many trials should we simulate? by default nrow(data)
+    nsims <- as.numeric(nrow(data) )
     
     # retrieving parameter values
     amplitude_activ <- par[[1]]
@@ -118,7 +121,7 @@ loss_function <- function (
         #     
         # }
         
-        # second option (probably faster)
+        # second option (similar results but probably faster)
         quants_props <- as.numeric(table(cut(x, quants2) ) ) / length(x)
         
         return (quants_props)
@@ -217,7 +220,7 @@ model_fitting <- function (
                 par = c(1, 1, 1, 1),
                 lower = c(0, 0, 0, 0),
                 upper = c(2, 2, 2, 2),
-                control = list(maxit = maxit, trace = 2)
+                control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
             
         } else if (method == "DEoptim") {
