@@ -5,7 +5,7 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 9, 2023                               #
+# Last updated on March 22, 2023                              #
 ###############################################################
 
 library(tidyverse)
@@ -43,11 +43,10 @@ model <- function (
     
     # defining the activation/inhibition function
     # basically an unnormalised lognormal distribution
-    # e.g., https://www.cell.com/neuron/pdf/S0896-6273(11)00879-8.pdf
     # https://en.wikipedia.org/wiki/Log-normal_distribution
     # if two independent, log-normal variables are multiplied [divided],
     # the product [ratio] is again log-normal, with parameters mu = mu_1 + mu_2
-    # [mu = mu1 − mu2] and sigma = sigma_1 + sigma_2 [sigma = sigma_1 - sigma_2]
+    # [mu = mu1 − mu2] and sigma = sqrt(sigma_1^2 + sigma_2^2)
     activation_inhibition_function <- function (
         time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
         ) {
@@ -132,7 +131,9 @@ model <- function (
     # implied distributions of RTs and MTs
     results <- results %>%
         group_by(sim) %>%
-        mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+        # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+        # ignoring the previous trial in the balance function (for now)
+        mutate(balance = activation / inhibition) %>%
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
         mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
         mutate(mt_exec = offset_exec - onset_exec) %>%

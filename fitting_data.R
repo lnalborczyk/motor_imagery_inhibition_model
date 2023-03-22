@@ -91,39 +91,93 @@ df_EE %>%
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
+####################################################
+# Fitting the model
+################################################
+
 # importing the data-generating model
 source(file = "model.R")
 
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# fitting the model using differential evolution
-# fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 500)
-# fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 500)
-fitting_results_IE <- model_fitting(data = df_IE, method = "DEoptim", maxit = 500)
-fitting_results_EE <- model_fitting(data = df_EE, method = "DEoptim", maxit = 500)
+# fitting the model using differential evolution (or particle swarm optimisation)
+# fitting_results_IE <- model_fitting(data = df_IE, method = "DEoptim", maxit = 200)
+# fitting_results_EE <- model_fitting(data = df_EE, method = "DEoptim", maxit = 200)
 
 # getting a summary of the optimisation results
-summary(fitting_results_IE)
-summary(fitting_results_EE)
+# summary(fitting_results_IE)
+# summary(fitting_results_EE)
 
 # 4 parameters are activation_amplitude, activation_peak_time,
 # inhibition_amplitude (% of activation_amplitude), and inhibition_peak_time (% of activation_peak_time)
+
 # best parameter estimates in IE sequences are 0.28155 0.5739 0.01884 1.38638 (bestvalit around 3.67289)
 # best parameter estimates in EE sequences are 0.29088 0.58059 0.04278 1.31645 (bestvalit around 4.13149)
 
 # retrieving the estimated parameters in IE sequences
-estimated_pars <- fitting_results_EE$optim$bestmem %>% as.numeric()
+# estimated_pars_IE <- fitting_results_IE$optim$bestmem %>% as.numeric()
+# estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
+
+# fitting the model using particle swarm optimisation
+fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 200)
+fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 200)
+
+# best parameter estimates in IE sequences are 0.0863133 0.6696509 0.7593148 0.7688874 (bestvalit around 0.11)
+# best parameter estimates in EE sequences are 0.29088 0.58059 0.04278 1.31645 (bestvalit around XX)
+
+# retrieving the estimated parameters in IE sequences
+estimated_pars_IE <- fitting_results_IE$par
+estimated_pars_EE <- fitting_results_EE$par
+
+# simulating data with the estimated parameters?
+sim_IE <- model(
+    nsims = 100, nsamples = 2000,
+    exec_threshold = 1, imag_threshold = 0.5, iti = 2,
+    amplitude_activ = estimated_pars_IE[1],
+    peak_time_activ = estimated_pars_IE[2],
+    curvature_activ = 0.4,
+    amplitude_inhib = estimated_pars_IE[3] * estimated_pars_IE[1],
+    peak_time_inhib = estimated_pars_IE[4] * estimated_pars_IE[2],
+    curvature_inhib = 0.6,
+    amplitude_inhib_prev = 0.5,
+    peak_time_inhib_prev = 0.5,
+    curvature_inhib_prev = 0.6
+    ) %>%
+    # was the action executed or imagined?
+    mutate(action_mode = ifelse(
+        test = estimated_pars[3] >= 1,
+        yes = "imagined", no = "executed"
+        ) ) %>%
+    # keeping only the relevant columns
+    dplyr::select(
+        sim,
+        reaction_time = paste0("onset_", substr(unique(.$action_mode), 1, 4) ),
+        movement_time = paste0("mt_", substr(unique(.$action_mode), 1, 4) ),
+        action_mode
+        ) %>%
+    distinct() %>%
+    dplyr::select(-sim)
+
+# plotting the distributions of RTs and MTs
+sim_IE %>%
+    pivot_longer(cols = reaction_time:movement_time) %>%
+    ggplot(aes(x = value, colour = name, fill = name) ) +
+    geom_density(alpha = 0.5, show.legend = FALSE) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
+    labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
 # simulating data with the estimated parameters?
 sim_EE <- model(
     nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-    amplitude_activ = estimated_pars[1],
-    peak_time_activ = estimated_pars[2],
+    amplitude_activ = estimated_pars_EE[1],
+    peak_time_activ = estimated_pars_EE[2],
     curvature_activ = 0.4,
-    amplitude_inhib = estimated_pars[3] * estimated_pars[1],
-    peak_time_inhib = estimated_pars[4] * estimated_pars[2],
+    amplitude_inhib = estimated_pars_EE[3] * estimated_pars_EE[1],
+    peak_time_inhib = estimated_pars_EE[4] * estimated_pars_EE[2],
     curvature_inhib = 0.6,
     amplitude_inhib_prev = 0.5,
     peak_time_inhib_prev = 0.5,
