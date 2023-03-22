@@ -4,7 +4,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 20, 2023            #
+# Last updated on March 22, 2023            #
 #############################################
 
 library(DEoptim) # global optimisation by differential evolution
@@ -216,7 +216,7 @@ model_fitting <- function (
             
             fit <- pso::psoptim(
                 fn = loss_function,
-                data = df,
+                data = data,
                 par = c(1, 1, 1, 1),
                 lower = c(0, 0, 0, 0),
                 upper = c(2, 2, 2, 2),
@@ -240,7 +240,7 @@ model_fitting <- function (
                     packages = c("DEoptim", "tidyverse"),
                     parVar = c("model", "loss_function")
                     ),
-                data = df
+                data = data
                 )
             
         } else if (method %in% c("Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb") ) {

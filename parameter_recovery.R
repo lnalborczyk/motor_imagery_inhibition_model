@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 21, 2023             #
+# Last updated on March 22, 2023             #
 ##############################################
 
 # importing the data-generating model
