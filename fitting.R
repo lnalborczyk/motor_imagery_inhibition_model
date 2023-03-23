@@ -1,10 +1,9 @@
 #############################################
 # Fitting the model                         #
-# Comparing various optimisation algorithms #
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 22, 2023            #
+# Last updated on March 23, 2023            #
 #############################################
 
 library(DEoptim) # global optimisation by differential evolution
@@ -15,12 +14,12 @@ library(pso) # particle swarm optimisation
 # simulating some data and computing the prediction error
 loss_function <- function (
         par = c(1, 1, 1, 1), data,
-        nsims, nsamples = 2000,
-        exec_threshold = 1, imag_threshold = 0.5, iti = 2
+        nsims = NULL, nsamples = 2000,
+        exec_threshold = 1, imag_threshold = 0.5
         ) {
     
-    # how many trials should we simulate? by default nrow(data)
-    nsims <- as.numeric(nrow(data) )
+    # how many trials should we simulate? if null, by default nrow(data)
+    if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
     
     # retrieving parameter values
     amplitude_activ <- par[[1]]
@@ -31,24 +30,20 @@ loss_function <- function (
     amplitude_inhib <- par[[3]] * amplitude_activ
     peak_time_inhib <- par[[4]] * peak_time_activ
     curvature_inhib <- 0.6
-    amplitude_inhib_prev <- 0.5
-    peak_time_inhib_prev <- 0.5
-    curvature_inhib_prev <- 0.6
     
     # simulating some data from the data-generating model
     results <- model(
         nsims = nsims, nsamples = nsamples,
-        exec_threshold = exec_threshold, imag_threshold = imag_threshold, iti = iti,
+        exec_threshold = exec_threshold, imag_threshold = imag_threshold,
         amplitude_activ = amplitude_activ,
         peak_time_activ = peak_time_activ,
         curvature_activ = curvature_activ,
         amplitude_inhib = amplitude_inhib,
         peak_time_inhib = peak_time_inhib,
-        curvature_inhib = curvature_inhib,
-        amplitude_inhib_prev = amplitude_inhib_prev,
-        peak_time_inhib_prev = peak_time_inhib_prev,
-        curvature_inhib_prev = curvature_inhib_prev
-        )
+        curvature_inhib = curvature_inhib
+        ) %>%
+        # removing lines with NAs in the balance column (when time = 0)
+        drop_na(balance)
     
     # adding some constraints
     # amplitude_inhib should be >= amplitude_activ in imagined trials...
@@ -110,18 +105,6 @@ loss_function <- function (
     find_quantiles_props <- function(x, quants) {
         
         quants2 <- c(0, quants, Inf) %>% as.numeric()
-        
-        # first option
-        # quants_props <- numeric(length = length(quants) + 1)
-        
-        # for (i in 1:length(quants_props) ) {
-        #     
-        #     quants_props[i] <- mean(quants2[i] < x & x <= quants2[i + 1])
-        #     # quants_props[i] <- mean(quants2[i] <= x & x < quants2[i + 1])
-        #     
-        # }
-        
-        # second option (similar results but probably faster)
         quants_props <- as.numeric(table(cut(x, quants2) ) ) / length(x)
         
         return (quants_props)

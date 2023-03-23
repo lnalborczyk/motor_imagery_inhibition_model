@@ -124,15 +124,15 @@ fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 200)
 fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 200)
 
 # best parameter estimates in IE sequences are 0.0863133 0.6696509 0.7593148 0.7688874 (bestvalit around 0.11)
-# best parameter estimates in EE sequences are 0.29088 0.58059 0.04278 1.31645 (bestvalit around XX)
+# best parameter estimates in EE sequences are 0.08061763 0.96286629 0.76655087 1.23743017 (bestvalit around 0.06805)
 
-# retrieving the estimated parameters in IE sequences
+# retrieving the estimated parameters
 estimated_pars_IE <- fitting_results_IE$par
 estimated_pars_EE <- fitting_results_EE$par
 
-# simulating data with the estimated parameters?
+# simulating data with the estimated parameters
 sim_IE <- model(
-    nsims = 100, nsamples = 2000,
+    nsims = nrow(df_IE), nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
     amplitude_activ = estimated_pars_IE[1],
     peak_time_activ = estimated_pars_IE[2],
@@ -146,7 +146,7 @@ sim_IE <- model(
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
-        test = estimated_pars[3] >= 1,
+        test = estimated_pars_IE[3] >= 1,
         yes = "imagined", no = "executed"
         ) ) %>%
     # keeping only the relevant columns
@@ -169,9 +169,9 @@ sim_IE %>%
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
-# simulating data with the estimated parameters?
+# simulating data with the estimated parameters
 sim_EE <- model(
-    nsims = 100, nsamples = 2000,
+    nsims = nrow(df_EE), nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
     amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = estimated_pars_EE[2],
@@ -185,7 +185,7 @@ sim_EE <- model(
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
-        test = estimated_pars[3] >= 1,
+        test = estimated_pars_EE[3] >= 1,
         yes = "imagined", no = "executed"
         ) ) %>%
     # keeping only the relevant columns

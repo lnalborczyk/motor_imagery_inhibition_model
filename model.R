@@ -1,11 +1,11 @@
 ###############################################################
 # A simplistic model of motor inhibition during motor imagery #
-# Generates patterns of activation/inhibition and             #
-# distributions of RTs and MTs                                #
+# Generates distributions of RTs and MTs according to the     #
+# net balance between excitatory and inhibitory inputs        #
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 22, 2023                              #
+# Last updated on March 23, 2023                              #
 ###############################################################
 
 library(tidyverse)
@@ -28,65 +28,29 @@ library(MetBrewer)
 # amplitude_inhib: amplitude of the inhibition function
 # peak_time_inhib: peak time of the inhibition function
 # curvature_inhib: curvature of the inhibition function
-# amplitude_inhib_prev: amplitude of the inhibition function (in the previous trial)
-# peak_time_inhib_prev: peak time of the inhibition function (in the previous trial)
-# curvature_inhib_prev: curvature of the inhibition function (in the previous trial)
 #################################################################
+
+# for testing purposes
+# nsims = 10; nsamples = 1e3;
+# exec_threshold = 1; imag_threshold = 0.5;
+# amplitude_activ = 1.5; peak_time_activ = 0.5; curvature_activ = 0.8;
+# amplitude_inhib = 1.5; peak_time_inhib = 0.5; curvature_inhib = 1.2;
 
 model <- function (
         nsims = 1e2, nsamples = 1e3,
-        exec_threshold = 1, imag_threshold = 0.5, iti = 2,
-        amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.8,
-        amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 1.2,
-        amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.5, curvature_inhib_prev = 1.2
+        exec_threshold = 1, imag_threshold = 0.5,
+        amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4,
+        amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
         ) {
     
-    # defining the activation/inhibition function
-    # basically an unnormalised lognormal distribution
-    # https://en.wikipedia.org/wiki/Log-normal_distribution
-    # if two independent, log-normal variables are multiplied [divided],
-    # the product [ratio] is again log-normal, with parameters mu = mu_1 + mu_2
-    # [mu = mu1 − mu2] and sigma = sqrt(sigma_1^2 + sigma_2^2)
-    activation_inhibition_function <- function (
-        time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
+    # or directly computing the balance (ratio) between activation and
+    # inhibition in the current trial (activation/inhibition)
+    # basically a ratio of two base (unnormalised) lognormal distribution
+    balance_funtion <- function (
+        time = 0,
+        activation_amplitude = 1.5, activation_peak_time = 0.6, activation_curvature = 0.4, 
+        inhibition_amplitude = 1.5, inhibition_peak_time = 0.5, inhibition_curvature = 0.6
         ) {
-        
-        activ <- amplitude * exp(-(log(time) - peak_time)^2 / (2 * curvature^2) )
-        
-        return (activ)
-        
-    }
-    
-    # plotting the activation/inhibition function
-    # curve(
-    #     expr = activation_inhibition_function,
-    #     from = 0, 2,
-    #     main = "Facilitation curve",
-    #     xlab = "Time (in seconds)",
-    #     ylab = "Facilitation (arbitrary units)"
-    #     )
-    
-    # initialising the results dataframe
-    results <- data.frame(
-        sim = rep(1:nsims, each = nsamples),
-        sample = rep(1:nsamples, nsims),
-        time = rep(1:nsamples, nsims) / 1e3,
-        exec_threshold = exec_threshold,
-        imag_threshold = imag_threshold,
-        activation = numeric(length = nsims * nsamples),
-        inhibition = numeric(length = nsims * nsamples),
-        inhibition_previous = numeric(length = nsims * nsamples)
-        )
-    
-    for (i in 1:nsims) { # for each simulated experiment
-        
-        # adding some variability in threshold (or not)
-        # threshold_sim <- rnorm(n = 1, mean = threshold, sd = 0)
-        # threshold_sim <- rnorm(n = 1, mean = threshold, sd = 0)
-        
-        # storing execution and imagery thresholds
-        # results$exec_threshold[results$sim == i] <- exec_threshold
-        # results$imag_threshold[results$sim == i] <- imag_threshold
         
         # adding some variability in the other parameters
         amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.01)
@@ -97,43 +61,37 @@ model <- function (
         peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.01)
         curvature_inhib_sim <- rnorm(n = 1, mean = curvature_inhib, sd = 0.01)
         
-        amplitude_inhib_prev_sim <- rnorm(n = 1, mean = amplitude_inhib_prev, sd = 0.01)
-        peak_time_inhib_prev_sim <- rnorm(n = 1, mean = peak_time_inhib_prev, sd = 0.01)
-        curvature_inhib_prev_sim <- rnorm(n = 1, mean = curvature_inhib_prev, sd = 0.01)
+        # computing the balance (ratio)
+        balance_output <- (amplitude_activ_sim / amplitude_inhib_sim) *
+            exp(-(log(time) - peak_time_activ_sim)^2 / (2 * curvature_activ_sim^2) +
+                    (log(time) - peak_time_inhib_sim)^2 / (2 * curvature_inhib_sim^2) )
         
-        # storing activation values for this simulation
-        results$activation[results$sim == i] <- activation_inhibition_function(
-            time = seq.int(from = 0, to = 5, length.out = nsamples),
-            amplitude = amplitude_activ_sim,
-            peak_time = peak_time_activ_sim,
-            curvature = curvature_activ_sim
-            )
-        
-        # storing inhibition values for this simulation
-        results$inhibition[results$sim == i] <- activation_inhibition_function(
-            time = seq.int(from = 0, to = 5, length.out = nsamples),
-            amplitude = amplitude_inhib_sim,
-            peak_time = peak_time_inhib_sim,
-            curvature = curvature_inhib_sim
-            )
-        
-        # storing inhibition values from previous trial
-        results$inhibition_previous[results$sim == i] <- activation_inhibition_function(
-            time = iti + seq.int(from = 0, to = 5, length.out = nsamples),
-            amplitude = amplitude_inhib_prev_sim,
-            peak_time = peak_time_inhib_prev_sim,
-            curvature = curvature_inhib_prev_sim
-            )
+        # returning it
+        return (balance_output)
         
     }
     
     # computing the activation/inhibition balance and
-    # implied distributions of RTs and MTs
-    results <- results %>%
+    # implied distributions of RTs and MTs per simulation
+    results <- data.frame(
+        sim = rep(1:nsims, each = nsamples),
+        sample = rep(1:nsamples, nsims),
+        time = rep(1:nsamples, nsims) / 1e3,
+        exec_threshold = exec_threshold,
+        imag_threshold = imag_threshold
+        ) %>%
         group_by(sim) %>%
-        # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
-        # ignoring the previous trial in the balance function (for now)
-        mutate(balance = activation / inhibition) %>%
+        mutate(
+            balance = balance_funtion(
+                time = seq.int(from = 0, to = 5, length.out = nsamples),
+                activation_amplitude = amplitude_activ,
+                activation_peak_time = peak_time_activ,
+                activation_curvature = curvature_activ, 
+                inhibition_amplitude = amplitude_inhib,
+                inhibition_peak_time = peak_time_inhib,
+                inhibition_curvature = curvature_inhib
+                )
+            ) %>%
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
         mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
         mutate(mt_exec = offset_exec - onset_exec) %>%
@@ -162,15 +120,14 @@ model <- function (
 ###################################################################
 
 # simulation_results <- model(
-#     nsims = 1000, nsamples = 2000,
-#     exec_threshold = 1, imag_threshold = 0.5, iti = 2,
+#     nsims = 1e2, nsamples = 2000,
+#     exec_threshold = 1, imag_threshold = 0.5,
 #     amplitude_activ = 1.5, peak_time_activ = 0.25, curvature_activ = 0.4,
-#     amplitude_inhib = 1.5, peak_time_inhib = 0.25, curvature_inhib = 0.6,
-#     amplitude_inhib_prev = 1.5, peak_time_inhib_prev = 0.25, curvature_inhib_prev = 0.6
+#     amplitude_inhib = 1.5, peak_time_inhib = 0.25, curvature_inhib = 0.6
 #     )
 # 
 # p1 <- simulation_results %>%
-#     pivot_longer(cols = activation:balance) %>%
+#     pivot_longer(cols = balance) %>%
 #     ggplot(
 #         aes(
 #             x = time, y = value,
@@ -194,7 +151,7 @@ model <- function (
 #     scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 4) ) +
 #     labs(
 #         title = "Simulating activation/inhibition patterns",
-#         subtitle = "Net balance is defined as activation_current / (inhibition_current + inhibition_previous)",
+#         subtitle = "Net balance is defined as activation_current / inhibition_current",
 #         x = "Time within a trial (in seconds)",
 #         y = "Activation/inhibition (a.u.)",
 #         colour = "",
