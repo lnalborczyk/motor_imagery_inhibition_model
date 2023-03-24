@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 23, 2023             #
+# Last updated on March 24, 2023             #
 ##############################################
 
 library(tidyverse)
@@ -93,7 +93,8 @@ df_EE %>%
 
 ##############################################################################
 # Fitting the model
-# 3 parameters are inhibition_amplitude (% of activation_amplitude),
+# 4 parameters are activation_peak_time (in seconds),
+# inhibition_amplitude (% of activation_amplitude),
 # inhibition_peak_time (% of activation_peak_time), and
 # inhibition_curvature (% of activation_curvature)
 #######################################################################
@@ -105,26 +106,40 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # fitting the model using differential evolution
-fitting_results_IE <- model_fitting(par = c(1, 1, 1), data = df_IE, method = "DEoptim", maxit = 200)
-fitting_results_EE <- model_fitting(par = c(1, 1, 1), data = df_EE, method = "DEoptim", maxit = 200)
+# fitting_results_IE <- model_fitting(
+#     par = c(1, 1, 1), data = df_IE,
+#     method = "DEoptim", maxit = 200
+#     )
+# 
+# fitting_results_EE <- model_fitting(
+#     par = c(1, 1, 1), data = df_EE,
+#     method = "DEoptim", maxit = 200
+#     )
 
 # getting a summary of the optimisation results
 # summary(fitting_results_IE)
 # summary(fitting_results_EE)
 
-# best parameter estimates in IE sequences are 0.28155 0.5739 0.01884 1.38638 (bestvalit around 3.67289)
-# best parameter estimates in EE sequences are 0.29088 0.58059 0.04278 1.31645 (bestvalit around 4.13149)
+# best parameter estimates in IE sequences are 0.977 0.95393 1.04441 (bestvalit around 1.63206)
+# best parameter estimates in EE sequences are 0.979 0.95512 1.05559 (bestvalit around 1.69417)
 
 # retrieving the estimated parameters in IE sequences
 # estimated_pars_IE <- fitting_results_IE$optim$bestmem %>% as.numeric()
 # estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
 
 # fitting the model using particle swarm optimisation
-fitting_results_IE <- model_fitting(par = c(1, 1, 1), data = df_IE, method = "pso", maxit = 200)
-fitting_results_EE <- model_fitting(par = c(1, 1, 1), data = df_EE, method = "pso", maxit = 200)
+fitting_results_IE <- model_fitting(
+    par = c(1, 1, 1, 1), data = df_IE,
+    method = "pso", maxit = 500
+    )
 
-# best parameter estimates in IE sequences are 0.1047517 0.8577826 0.7111382 1.0963047 (bestvalit around 0.0472)
-# best parameter estimates in EE sequences are 0.09136413 0.99111854 0.84127333 1.28512680 (bestvalit around 0.0516)
+fitting_results_EE <- model_fitting(
+    par = c(1, 1, 1, 1), data = df_EE,
+    method = "pso", maxit = 500
+    )
+
+# best parameter estimates in IE sequences are 0.9742326 0.9495626 1.0414963 (bestvalit around 1.497536)
+# best parameter estimates in EE sequences are 0.09136413 0.99111854 0.84127333 (bestvalit around 0.0516)
 
 # retrieving the estimated parameters
 estimated_pars_IE <- fitting_results_IE$par

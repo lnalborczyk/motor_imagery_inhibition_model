@@ -230,7 +230,7 @@ model <- function (
 
 # saving the plot
 # ggsave(
-#     filename = "model_output.png",
+#     filename = "figures/model_output.png",
 #     width = 16, height = 8, dpi = 300,
 #     device = "png"
 #     )

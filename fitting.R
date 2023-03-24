@@ -6,6 +6,7 @@
 # Last updated on March 24, 2023            #
 #############################################
 
+library(hydroPSO) # particle swarm optimisation
 library(DEoptim) # global optimisation by differential evolution
 library(optimx) # various optimisation methods
 library(GenSA) # generalised simulated annealing
@@ -13,7 +14,7 @@ library(pso) # particle swarm optimisation
 
 # simulating some data and computing the prediction error
 loss_function <- function (
-        par = c(1, 1, 1), data,
+        par = c(1, 1, 1, 1, 1), data,
         nsims = NULL, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5
         ) {
@@ -22,16 +23,16 @@ loss_function <- function (
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
     
     # setting arbitrary parameter values for the activation function
-    amplitude_activ <- 1.5
-    peak_time_activ <- 0.5
-    curvature_activ <- 0.4
+    amplitude_activ <- par[[1]]
+    peak_time_activ <- par[[2]]
+    curvature_activ <- par[[3]]
     
     # retrieving parameter values for the inhibition function
     # amplitude_inhib, peak_time_inhib, and curvature_inhib are expressed
     # in % of amplitude_activ, peak_time_activ, and curvature_activ
-    amplitude_inhib <- par[[1]] * amplitude_activ
-    peak_time_inhib <- par[[2]] * peak_time_activ
-    curvature_inhib <- par[[3]] * curvature_activ
+    amplitude_inhib <- par[[4]] * amplitude_activ
+    peak_time_inhib <- par[[5]] * peak_time_activ
+    curvature_inhib <- par[[6]] * curvature_activ
     
     # simulating some data from the data-generating model
     results <- model(
@@ -206,10 +207,29 @@ model_fitting <- function (
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
             
+        } else if (method == "hydroPSO") {
+            
+            fit <- hydroPSO::hydroPSO(
+                fn = loss_function,
+                data = data,
+                par = par,
+                lower = rep(0, length(par) ),
+                upper = rep(2, length(par) ),
+                control = list(
+                    maxit = maxit,
+                    verbose = TRUE,
+                    # using all available cores
+                    parallel = "parallel"
+                    # packages = c("DEoptim", "tidyverse"),
+                    # parVar = c("model", "loss_function")
+                    )
+                )
+            
         } else if (method == "DEoptim") {
             
             fit <- DEoptim::DEoptim(
                 fn = loss_function,
+                data = data,
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
                 control = DEoptim.control(
@@ -222,8 +242,7 @@ model_fitting <- function (
                     parallelType = "parallel",
                     packages = c("DEoptim", "tidyverse"),
                     parVar = c("model", "loss_function")
-                    ),
-                data = data
+                    )
                 )
             
         } else if (method %in% c("Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb") ) {
