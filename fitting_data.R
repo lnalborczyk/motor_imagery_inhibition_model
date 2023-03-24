@@ -93,7 +93,8 @@ df_EE %>%
 
 ##############################################################################
 # Fitting the model
-# 4 parameters are activation_peak_time (in seconds),
+# 6 parameters are activation_amplitude,
+# activation_peak_time, activation_curvature,
 # inhibition_amplitude (% of activation_amplitude),
 # inhibition_peak_time (% of activation_peak_time), and
 # inhibition_curvature (% of activation_curvature)
@@ -129,13 +130,13 @@ source(file = "fitting.R")
 
 # fitting the model using particle swarm optimisation
 fitting_results_IE <- model_fitting(
-    par = c(1, 1, 1, 1), data = df_IE,
-    method = "pso", maxit = 500
+    par = c(1, 1, 1, 1, 1, 1), data = df_IE,
+    method = "pso", maxit = 1e4
     )
 
 fitting_results_EE <- model_fitting(
-    par = c(1, 1, 1, 1), data = df_EE,
-    method = "pso", maxit = 500
+    par = c(1, 1, 1, 1, 1, 1), data = df_EE,
+    method = "pso", maxit = 1e4
     )
 
 # best parameter estimates in IE sequences are 0.9742326 0.9495626 1.0414963 (bestvalit around 1.497536)

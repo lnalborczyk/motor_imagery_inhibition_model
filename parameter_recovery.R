@@ -64,17 +64,17 @@ df %>%
 
 # fitting the model using particle swarm optimisation
 # works well (error around 0.01) but quite slow
-# fitting_results <- model_fitting(
-#     par = c(1, 1, 1, 1, 1, 1), data = df,
-#     method = "pso", maxit = 1e3
-#     )
+fitting_results <- model_fitting(
+    par = c(1, 1, 1, 1, 1, 1), data = df,
+    method = "pso", maxit = 1e3
+    )
 
 # fitting the model using a parallelised particle swarm optimisation
 # works well and slightly faster
-fitting_results <- model_fitting(
-    par = c(1, 1, 1, 1, 1, 1), data = df,
-    method = "hydroPSO", maxit = 1e3
-    )
+# fitting_results <- model_fitting(
+#     par = c(1, 1, 1, 1, 1, 1), data = df,
+#     method = "hydroPSO", maxit = 1e3
+#     )
 
 # fitting the model using differential evolution
 # seems to work best (error around 0.05) in short periods of time
