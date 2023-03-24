@@ -3,7 +3,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 23, 2023            #
+# Last updated on March 24, 2023            #
 #############################################
 
 library(DEoptim) # global optimisation by differential evolution
@@ -21,12 +21,13 @@ loss_function <- function (
     # how many trials should we simulate? if null, by default nrow(data)
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
     
-    # retrieving parameter values
+    # retrieving parameter values for the activation function
     amplitude_activ <- par[[1]]
     peak_time_activ <- par[[2]]
     curvature_activ <- 0.4
-    # amplitude_inhib is expressed in % of amplitude_activ
-    # peak_time_inhib is expressed in % of peak_time_activ
+    # retrieving parameter values for the inhibition function
+    # amplitude_inhib and peak_time_inhib are expressed
+    # in % of amplitude_activ and peak_time_activ
     amplitude_inhib <- par[[3]] * amplitude_activ
     peak_time_inhib <- par[[4]] * peak_time_activ
     curvature_inhib <- 0.6
@@ -41,9 +42,7 @@ loss_function <- function (
         amplitude_inhib = amplitude_inhib,
         peak_time_inhib = peak_time_inhib,
         curvature_inhib = curvature_inhib
-        ) %>%
-        # removing lines with NAs in the balance column (when time = 0)
-        drop_na(balance)
+        )
     
     # adding some constraints
     # amplitude_inhib should be >= amplitude_activ in imagined trials...

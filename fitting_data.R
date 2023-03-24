@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 22, 2023             #
+# Last updated on March 23, 2023             #
 ##############################################
 
 library(tidyverse)
@@ -16,7 +16,7 @@ library(MetBrewer)
 ######################################################################
 
 # importing data for IE sequences in the hand group
-df_IE <- read.csv(file = "private/data_bart_2020/dataset_exp1.csv") %>%
+df_IE <- read.csv(file = "private/data/bart_2020/dataset_exp1.csv") %>%
     # keeping only mixed blocks (for comparison purposes)
     select(participant = ID, group, contains(match = "mixed") ) %>%
     # reshaping the RT/MT information
@@ -54,7 +54,7 @@ df_IE %>%
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
 # importing data for EE sequences in the hand group
-df_EE <- read.csv(file = "private/data_bart_2020/dataset_exp1.csv") %>%
+df_EE <- read.csv(file = "private/data/bart_2020/dataset_exp1.csv") %>%
     # keeping only mixed blocks (for comparison purposes)
     select(participant = ID, group, contains(match = "mixed") ) %>%
     # reshaping the RT/MT information
@@ -91,9 +91,12 @@ df_EE %>%
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
-####################################################
+##############################################################################
 # Fitting the model
-################################################
+# 4 parameters are activation_amplitude, activation_peak_time,
+# inhibition_amplitude (% of activation_amplitude),
+# and inhibition_peak_time (% of activation_peak_time)
+#######################################################################
 
 # importing the data-generating model
 source(file = "model.R")
@@ -101,16 +104,13 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# fitting the model using differential evolution (or particle swarm optimisation)
+# fitting the model using differential evolution
 # fitting_results_IE <- model_fitting(data = df_IE, method = "DEoptim", maxit = 200)
 # fitting_results_EE <- model_fitting(data = df_EE, method = "DEoptim", maxit = 200)
 
 # getting a summary of the optimisation results
 # summary(fitting_results_IE)
 # summary(fitting_results_EE)
-
-# 4 parameters are activation_amplitude, activation_peak_time,
-# inhibition_amplitude (% of activation_amplitude), and inhibition_peak_time (% of activation_peak_time)
 
 # best parameter estimates in IE sequences are 0.28155 0.5739 0.01884 1.38638 (bestvalit around 3.67289)
 # best parameter estimates in EE sequences are 0.29088 0.58059 0.04278 1.31645 (bestvalit around 4.13149)
@@ -120,11 +120,11 @@ source(file = "fitting.R")
 # estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
 
 # fitting the model using particle swarm optimisation
-fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 200)
-fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 200)
+fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 1e3)
+fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 1e3)
 
-# best parameter estimates in IE sequences are 0.0863133 0.6696509 0.7593148 0.7688874 (bestvalit around 0.11)
-# best parameter estimates in EE sequences are 0.08061763 0.96286629 0.76655087 1.23743017 (bestvalit around 0.06805)
+# best parameter estimates in IE sequences are 0.1047517 0.8577826 0.7111382 1.0963047 (bestvalit around 0.0472)
+# best parameter estimates in EE sequences are 0.09136413 0.99111854 0.84127333 1.28512680 (bestvalit around 0.0516)
 
 # retrieving the estimated parameters
 estimated_pars_IE <- fitting_results_IE$par
@@ -133,16 +133,16 @@ estimated_pars_EE <- fitting_results_EE$par
 # simulating data with the estimated parameters
 sim_IE <- model(
     nsims = nrow(df_IE), nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5, iti = 2,
+    exec_threshold = 1, imag_threshold = 0.5, # iti = 2,
     amplitude_activ = estimated_pars_IE[1],
     peak_time_activ = estimated_pars_IE[2],
     curvature_activ = 0.4,
     amplitude_inhib = estimated_pars_IE[3] * estimated_pars_IE[1],
     peak_time_inhib = estimated_pars_IE[4] * estimated_pars_IE[2],
-    curvature_inhib = 0.6,
-    amplitude_inhib_prev = 0.5,
-    peak_time_inhib_prev = 0.5,
-    curvature_inhib_prev = 0.6
+    curvature_inhib = 0.6
+    # amplitude_inhib_prev = 0.5,
+    # peak_time_inhib_prev = 0.5,
+    # curvature_inhib_prev = 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
@@ -165,6 +165,7 @@ sim_IE %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(alpha = 0.5, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
+    coord_cartesian(xlim = c(0.25, 1.25) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
@@ -172,16 +173,16 @@ sim_IE %>%
 # simulating data with the estimated parameters
 sim_EE <- model(
     nsims = nrow(df_EE), nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5, iti = 2,
+    exec_threshold = 1, imag_threshold = 0.5, # iti = 2,
     amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = estimated_pars_EE[2],
     curvature_activ = 0.4,
     amplitude_inhib = estimated_pars_EE[3] * estimated_pars_EE[1],
     peak_time_inhib = estimated_pars_EE[4] * estimated_pars_EE[2],
-    curvature_inhib = 0.6,
-    amplitude_inhib_prev = 0.5,
-    peak_time_inhib_prev = 0.5,
-    curvature_inhib_prev = 0.6
+    curvature_inhib = 0.6
+    # amplitude_inhib_prev = 0.5,
+    # peak_time_inhib_prev = 0.5,
+    # curvature_inhib_prev = 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
@@ -204,6 +205,7 @@ sim_EE %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(alpha = 0.5, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
+    coord_cartesian(xlim = c(0.25, 1.25) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")

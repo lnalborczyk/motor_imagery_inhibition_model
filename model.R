@@ -5,7 +5,7 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 23, 2023                              #
+# Last updated on March 24, 2023                              #
 ###############################################################
 
 library(tidyverse)
@@ -31,7 +31,7 @@ library(MetBrewer)
 #################################################################
 
 # for testing purposes
-# nsims = 10; nsamples = 1e3;
+# nsims = 1e2; nsamples = 1e3;
 # exec_threshold = 1; imag_threshold = 0.5;
 # amplitude_activ = 1.5; peak_time_activ = 0.5; curvature_activ = 0.8;
 # amplitude_inhib = 1.5; peak_time_inhib = 0.5; curvature_inhib = 1.2;
@@ -43,13 +43,24 @@ model <- function (
         amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
         ) {
     
+    # defining the activation/inhibition lognormal base function
+    activation_inhibition_function <- function (
+        time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
+        ) {
+        
+        activ_inhib <- amplitude * exp(-(log(time) - peak_time)^2 / (2 * curvature^2) )
+        
+        return (activ_inhib)
+        
+    }
+    
     # or directly computing the balance (ratio) between activation and
     # inhibition in the current trial (activation/inhibition)
     # basically a ratio of two base (unnormalised) lognormal distribution
     balance_funtion <- function (
         time = 0,
-        activation_amplitude = 1.5, activation_peak_time = 0.6, activation_curvature = 0.4, 
-        inhibition_amplitude = 1.5, inhibition_peak_time = 0.5, inhibition_curvature = 0.6
+        amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4, 
+        amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
         ) {
         
         # adding some variability in the other parameters
@@ -66,6 +77,9 @@ model <- function (
             exp(-(log(time) - peak_time_activ_sim)^2 / (2 * curvature_activ_sim^2) +
                     (log(time) - peak_time_inhib_sim)^2 / (2 * curvature_inhib_sim^2) )
         
+        # when time = 0, balance should be 0 as well (starting point)
+        balance_output <- ifelse(test = time == 0, yes = 0, no = balance_output)
+    
         # returning it
         return (balance_output)
         
@@ -81,15 +95,31 @@ model <- function (
         imag_threshold = imag_threshold
         ) %>%
         group_by(sim) %>%
+        # mutate(
+        #     activation = activation_inhibition_function(
+        #         time = seq.int(from = 0, to = 5, length.out = nsamples),
+        #         amplitude = amplitude_activ,
+        #         peak_time = peak_time_activ,
+        #         curvature = curvature_activ
+        #         )
+        #     ) %>%
+        # mutate(
+        #     inhibition = activation_inhibition_function(
+        #         time = seq.int(from = 0, to = 5, length.out = nsamples),
+        #         amplitude = amplitude_inhib,
+        #         peak_time = peak_time_inhib,
+        #         curvature = curvature_inhib
+        #         )
+        #     ) %>%
         mutate(
             balance = balance_funtion(
                 time = seq.int(from = 0, to = 5, length.out = nsamples),
-                activation_amplitude = amplitude_activ,
-                activation_peak_time = peak_time_activ,
-                activation_curvature = curvature_activ, 
-                inhibition_amplitude = amplitude_inhib,
-                inhibition_peak_time = peak_time_inhib,
-                inhibition_curvature = curvature_inhib
+                amplitude_activ = amplitude_activ,
+                peak_time_activ = peak_time_activ,
+                curvature_activ = curvature_activ, 
+                amplitude_inhib = amplitude_inhib,
+                peak_time_inhib = peak_time_inhib,
+                curvature_inhib = curvature_inhib
                 )
             ) %>%
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
@@ -122,8 +152,8 @@ model <- function (
 # simulation_results <- model(
 #     nsims = 1e2, nsamples = 2000,
 #     exec_threshold = 1, imag_threshold = 0.5,
-#     amplitude_activ = 1.5, peak_time_activ = 0.25, curvature_activ = 0.4,
-#     amplitude_inhib = 1.5, peak_time_inhib = 0.25, curvature_inhib = 0.6
+#     amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4,
+#     amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
 #     )
 # 
 # p1 <- simulation_results %>%
@@ -138,7 +168,7 @@ model <- function (
 #     geom_hline(yintercept = 1, linetype = 2) +
 #     geom_hline(yintercept = 0.5, linetype = 2) +
 #     # plotting individual simulations
-#     geom_line(size = 0.1, alpha = 0.1, show.legend = FALSE) +
+#     geom_line(size = 0.5, alpha = 0.1, show.legend = FALSE) +
 #     # plotting average
 #     stat_summary(
 #         aes(group = name, colour = name),

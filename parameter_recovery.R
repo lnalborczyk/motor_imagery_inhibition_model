@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 23, 2023             #
+# Last updated on March 24, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -55,15 +55,15 @@ df %>%
 # fitting_results <- model_fitting(data = df, method = "SANN", maxit = 200)
 
 # fitting the model using generalised simulated annealing (works much better but slow)
-# fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 100)
+# fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 200)
 
 # fitting the model using particle swarm optimisation
 # works very well with 1e3 iterations but quite slow...
-# fitting_results <- model_fitting(data = df, method = "pso", maxit = 100)
+fitting_results <- model_fitting(data = df, method = "pso", maxit = 200)
 
 # fitting the model using differential evolution
 # seems to work best in short periods of time...
-fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 100)
+# fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 200)
 
 # plotting the optimisation results
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")
