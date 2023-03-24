@@ -93,9 +93,9 @@ df_EE %>%
 
 ##############################################################################
 # Fitting the model
-# 4 parameters are activation_amplitude, activation_peak_time,
-# inhibition_amplitude (% of activation_amplitude),
-# and inhibition_peak_time (% of activation_peak_time)
+# 3 parameters are inhibition_amplitude (% of activation_amplitude),
+# inhibition_peak_time (% of activation_peak_time), and
+# inhibition_curvature (% of activation_curvature)
 #######################################################################
 
 # importing the data-generating model
@@ -105,8 +105,8 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # fitting the model using differential evolution
-# fitting_results_IE <- model_fitting(data = df_IE, method = "DEoptim", maxit = 200)
-# fitting_results_EE <- model_fitting(data = df_EE, method = "DEoptim", maxit = 200)
+fitting_results_IE <- model_fitting(par = c(1, 1, 1), data = df_IE, method = "DEoptim", maxit = 200)
+fitting_results_EE <- model_fitting(par = c(1, 1, 1), data = df_EE, method = "DEoptim", maxit = 200)
 
 # getting a summary of the optimisation results
 # summary(fitting_results_IE)
@@ -120,8 +120,8 @@ source(file = "fitting.R")
 # estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
 
 # fitting the model using particle swarm optimisation
-fitting_results_IE <- model_fitting(data = df_IE, method = "pso", maxit = 1e3)
-fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 1e3)
+fitting_results_IE <- model_fitting(par = c(1, 1, 1), data = df_IE, method = "pso", maxit = 200)
+fitting_results_EE <- model_fitting(par = c(1, 1, 1), data = df_EE, method = "pso", maxit = 200)
 
 # best parameter estimates in IE sequences are 0.1047517 0.8577826 0.7111382 1.0963047 (bestvalit around 0.0472)
 # best parameter estimates in EE sequences are 0.09136413 0.99111854 0.84127333 1.28512680 (bestvalit around 0.0516)
@@ -130,19 +130,16 @@ fitting_results_EE <- model_fitting(data = df_EE, method = "pso", maxit = 1e3)
 estimated_pars_IE <- fitting_results_IE$par
 estimated_pars_EE <- fitting_results_EE$par
 
-# simulating data with the estimated parameters
+# simulating data with the estimated parameters (kind of ppc)
 sim_IE <- model(
     nsims = nrow(df_IE), nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5, # iti = 2,
+    exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = estimated_pars_IE[1],
     peak_time_activ = estimated_pars_IE[2],
     curvature_activ = 0.4,
     amplitude_inhib = estimated_pars_IE[3] * estimated_pars_IE[1],
     peak_time_inhib = estimated_pars_IE[4] * estimated_pars_IE[2],
     curvature_inhib = 0.6
-    # amplitude_inhib_prev = 0.5,
-    # peak_time_inhib_prev = 0.5,
-    # curvature_inhib_prev = 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
@@ -170,19 +167,16 @@ sim_IE %>%
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
-# simulating data with the estimated parameters
+# simulating data with the estimated parameters (kind of ppc)
 sim_EE <- model(
     nsims = nrow(df_EE), nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5, # iti = 2,
+    exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = estimated_pars_EE[2],
     curvature_activ = 0.4,
     amplitude_inhib = estimated_pars_EE[3] * estimated_pars_EE[1],
     peak_time_inhib = estimated_pars_EE[4] * estimated_pars_EE[2],
     curvature_inhib = 0.6
-    # amplitude_inhib_prev = 0.5,
-    # peak_time_inhib_prev = 0.5,
-    # curvature_inhib_prev = 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(

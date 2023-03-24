@@ -13,18 +13,18 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # true parameter values in EI sequences
-true_pars <- c(1.5, 0.5, 1.25, 0.75)
+true_pars <- c(1.25, 1, 1.5)
 
 # simulating data
 df <- model(
     nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = true_pars[1],
-    peak_time_activ = true_pars[2],
+    amplitude_activ = 1.5,
+    peak_time_activ = 0.5,
     curvature_activ = 0.4,
-    amplitude_inhib = true_pars[3] * true_pars[1],
-    peak_time_inhib = true_pars[4] * true_pars[2],
-    curvature_inhib = 0.6
+    amplitude_inhib = true_pars[1] * 1.5,
+    peak_time_inhib = true_pars[2] * 0.5,
+    curvature_inhib = true_pars[3] * 0.4
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(test = true_pars[3] >= 1, yes = "imagined", no = "executed") ) %>%
@@ -58,14 +58,20 @@ df %>%
 # fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 200)
 
 # fitting the model using particle swarm optimisation
-# works very well with 1e3 iterations but quite slow...
-fitting_results <- model_fitting(data = df, method = "pso", maxit = 200)
+# works very well but quite slow
+# fitting_results <- model_fitting(
+#     par = c(1, 1, 1), data = df,
+#     method = "pso", maxit = 1e2
+#     )
 
 # fitting the model using differential evolution
-# seems to work best in short periods of time...
-# fitting_results <- model_fitting(data = df, method = "DEoptim", maxit = 200)
+# seems to work best in short periods of time
+fitting_results <- model_fitting(
+    par = c(1, 1, 1), data = df,
+    method = "DEoptim", maxit = 1e2
+    )
 
-# plotting the optimisation results
+# plotting the optimisation results (for DEoptim only)
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")
 # plot(x = fitting_results, plot.type = "bestvalit", type = "b", col = "steelblue")
 
