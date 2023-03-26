@@ -3,13 +3,13 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 24, 2023             #
+# Last updated on March 26, 2023             #
 ##############################################
 
 library(tidyverse)
 library(MetBrewer)
 
-#############################################################################
+############################################################################
 # Experiment 1 from Bart et al. (2020)
 # Group 1 is hand, group 2 is foot
 # Other variables explained at https://osf.io/xtpfg
@@ -107,44 +107,48 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # fitting the model using differential evolution
-# fitting_results_IE <- model_fitting(
-#     par = c(1, 1, 1), data = df_IE,
-#     method = "DEoptim", maxit = 200
-#     )
-# 
-# fitting_results_EE <- model_fitting(
-#     par = c(1, 1, 1), data = df_EE,
-#     method = "DEoptim", maxit = 200
-#     )
+fitting_results_IE <- model_fitting(
+    par = c(1, 1, 1, 1, 1, 1), data = df_IE,
+    method = "DEoptim", maxit = 1e3
+    )
+
+fitting_results_EE <- model_fitting(
+    par = c(1, 1, 1, 1, 1, 1), data = df_EE,
+    method = "DEoptim", maxit = 1e3
+    )
 
 # getting a summary of the optimisation results
 # summary(fitting_results_IE)
 # summary(fitting_results_EE)
 
-# best parameter estimates in IE sequences are 0.977 0.95393 1.04441 (bestvalit around 1.63206)
-# best parameter estimates in EE sequences are 0.979 0.95512 1.05559 (bestvalit around 1.69417)
+# best parameter estimates in IE sequences are
+# 0.04377 1.0547 0.23837 0.89721 1.3295 1.5538  (bestvalit around 0.03077)
+# best parameter estimates in EE sequences are
+# 0.49199 0.85443 0.62082 0.94012 1.02996 1.15182 (bestvalit around 0.04831)
 
 # retrieving the estimated parameters in IE sequences
 # estimated_pars_IE <- fitting_results_IE$optim$bestmem %>% as.numeric()
 # estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
 
 # fitting the model using particle swarm optimisation
-fitting_results_IE <- model_fitting(
-    par = c(1, 1, 1, 1, 1, 1), data = df_IE,
-    method = "pso", maxit = 1e4
-    )
+# fitting_results_IE <- model_fitting(
+#     par = c(1, 1, 1, 1, 1, 1), data = df_IE,
+#     method = "pso", maxit = 2000
+#     )
+# 
+# fitting_results_EE <- model_fitting(
+#     par = c(1, 1, 1, 1, 1, 1), data = df_EE,
+#     method = "pso", maxit = 2000
+#     )
 
-fitting_results_EE <- model_fitting(
-    par = c(1, 1, 1, 1, 1, 1), data = df_EE,
-    method = "pso", maxit = 1e4
-    )
-
-# best parameter estimates in IE sequences are 0.9742326 0.9495626 1.0414963 (bestvalit around 1.497536)
-# best parameter estimates in EE sequences are 0.09136413 0.99111854 0.84127333 (bestvalit around 0.0516)
+# best parameter estimates in IE sequences are
+# 0.0343488171 0.5477616132 0.2876862846 0.9583299498 0.0005916149 1.8014553519 (bestvalit around 0.05069868)
+# best parameter estimates in EE sequences are
+# 2.00000000 1.00445849 0.07692108 0.04314579 1.55153960 1.90340393 (bestvalit around 0.1070052)
 
 # retrieving the estimated parameters
-estimated_pars_IE <- fitting_results_IE$par
-estimated_pars_EE <- fitting_results_EE$par
+estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
+estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
 
 # simulating data with the estimated parameters (kind of ppc)
 sim_IE <- model(
@@ -152,14 +156,14 @@ sim_IE <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = estimated_pars_IE[1],
     peak_time_activ = estimated_pars_IE[2],
-    curvature_activ = 0.4,
-    amplitude_inhib = estimated_pars_IE[3] * estimated_pars_IE[1],
-    peak_time_inhib = estimated_pars_IE[4] * estimated_pars_IE[2],
-    curvature_inhib = 0.6
+    curvature_activ = estimated_pars_IE[3],
+    amplitude_inhib = estimated_pars_IE[4] * estimated_pars_IE[1],
+    peak_time_inhib = estimated_pars_IE[5] * estimated_pars_IE[2],
+    curvature_inhib = estimated_pars_IE[6] * estimated_pars_IE[3]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
-        test = estimated_pars_IE[3] >= 1,
+        test = estimated_pars_IE[4] >= 1,
         yes = "imagined", no = "executed"
         ) ) %>%
     # keeping only the relevant columns
@@ -176,12 +180,22 @@ sim_IE <- model(
 sim_IE %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
-    geom_density(alpha = 0.5, show.legend = FALSE) +
+    geom_density(
+        data = df_IE %>% pivot_longer(cols = reaction_time:movement_time),
+        color = "white",
+        position = "identity",
+        alpha = 0.5, show.legend = FALSE
+        ) +
+    geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    coord_cartesian(xlim = c(0.25, 1.25) ) +
+    # coord_cartesian(xlim = c(0.25, 1.25) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
-    labs(x = "Reaction/Movement time (in seconds)", y = "Density")
+    labs(
+        title = "Observed and simulated distributions of RTs/MTs",
+        subtitle = "Distributions of RTs and MTs in imagined-executed sequences",
+        x = "Reaction/Movement time (in seconds)", y = "Density"
+        )
 
 # simulating data with the estimated parameters (kind of ppc)
 sim_EE <- model(
@@ -189,14 +203,14 @@ sim_EE <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = estimated_pars_EE[2],
-    curvature_activ = 0.4,
-    amplitude_inhib = estimated_pars_EE[3] * estimated_pars_EE[1],
-    peak_time_inhib = estimated_pars_EE[4] * estimated_pars_EE[2],
-    curvature_inhib = 0.6
+    curvature_activ = estimated_pars_EE[3],
+    amplitude_inhib = estimated_pars_EE[4] * estimated_pars_EE[1],
+    peak_time_inhib = estimated_pars_EE[5] * estimated_pars_EE[2],
+    curvature_inhib = estimated_pars_EE[6] * estimated_pars_EE[3]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = ifelse(
-        test = estimated_pars_EE[3] >= 1,
+        test = estimated_pars_EE[4] >= 1,
         yes = "imagined", no = "executed"
         ) ) %>%
     # keeping only the relevant columns
@@ -213,9 +227,19 @@ sim_EE <- model(
 sim_EE %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
-    geom_density(alpha = 0.5, show.legend = FALSE) +
+    geom_density(
+        data = df_EE %>% pivot_longer(cols = reaction_time:movement_time),
+        color = "white",
+        position = "identity",
+        alpha = 0.5, show.legend = FALSE
+        ) +
+    geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    coord_cartesian(xlim = c(0.25, 1.25) ) +
+    # coord_cartesian(xlim = c(0.25, 1.25) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
-    labs(x = "Reaction/Movement time (in seconds)", y = "Density")
+    labs(
+        title = "Observed and simulated distributions of RTs/MTs",
+        subtitle = "Distributions of RTs and MTs in executed-executed sequences",
+        x = "Reaction/Movement time (in seconds)", y = "Density"
+        )

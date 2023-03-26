@@ -3,7 +3,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 24, 2023            #
+# Last updated on March 26, 2023            #
 #############################################
 
 library(hydroPSO) # particle swarm optimisation
@@ -22,17 +22,19 @@ loss_function <- function (
     # how many trials should we simulate? if null, by default nrow(data)
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
     
-    # setting arbitrary parameter values for the activation function
-    amplitude_activ <- par[[1]]
-    peak_time_activ <- par[[2]]
-    curvature_activ <- par[[3]]
+    # setting an arbitrary values for the amplitude of the activation function
+    amplitude_activ <- 1.5 # par[[1]]
+    
+    # retrieving parameter values for the activation function
+    peak_time_activ <- par[[1]]
+    curvature_activ <- par[[2]]
     
     # retrieving parameter values for the inhibition function
     # amplitude_inhib, peak_time_inhib, and curvature_inhib are expressed
     # in % of amplitude_activ, peak_time_activ, and curvature_activ
-    amplitude_inhib <- par[[4]] * amplitude_activ
-    peak_time_inhib <- par[[5]] * peak_time_activ
-    curvature_inhib <- par[[6]] * curvature_activ
+    amplitude_inhib <- par[[3]] * amplitude_activ
+    peak_time_inhib <- par[[4]] * peak_time_activ
+    curvature_inhib <- par[[5]] * curvature_activ
     
     # simulating some data from the data-generating model
     results <- model(
@@ -47,8 +49,9 @@ loss_function <- function (
         )
     
     # adding some constraints
-    # amplitude_inhib should be >= amplitude_activ in imagined trials...
-    # amplitude_activ should be >= amplitude_inhib in executed trials...
+    # amplitude_inhib should be >= amplitude_activ in imagined trials
+    # amplitude_activ should be >= amplitude_inhib in executed trials
+    # curvature_inhib should be >= curvature_activ
     if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
 
         prediction_error <- 1e6
@@ -59,6 +62,11 @@ loss_function <- function (
         prediction_error <- 1e6
         return (prediction_error)
 
+    } else if (curvature_activ > curvature_inhib) {
+        
+        prediction_error <- 1e6
+        return (prediction_error)
+        
     }
     
     # retrieving distribution of simulated RTs
@@ -103,7 +111,7 @@ loss_function <- function (
     }
     
     # computes the proportion of observations within quantiles
-    find_quantiles_props <- function(x, quants) {
+    find_quantiles_props <- function (x, quants) {
         
         quants2 <- c(0, quants, Inf) %>% as.numeric()
         quants_props <- as.numeric(table(cut(x, quants2) ) ) / length(x)
@@ -151,13 +159,13 @@ loss_function <- function (
     predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
     
     # computes the G^2 prediction error (combined for RTs and MTs)
-    # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018.)
+    # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018)
     prediction_error <- 2 * (
         # error for RTs
         sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
             # error for MTs
             sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
-    )
+        )
     
     # returns the prediction error
     return (prediction_error)
@@ -220,8 +228,6 @@ model_fitting <- function (
                     verbose = TRUE,
                     # using all available cores
                     parallel = "parallel"
-                    # packages = c("DEoptim", "tidyverse"),
-                    # parVar = c("model", "loss_function")
                     )
                 )
             
@@ -236,8 +242,10 @@ model_fitting <- function (
                     itermax = maxit, trace = 2,
                     # defines the differential evolution strategy (defaults to 2)
                     # strategy = 6,
+                    # value to reach (defaults to -Inf)
+                    VTR = 0,
                     # c controls the speed of the crossover adaptation (defaults to 0)
-                    # VTR = 0, c = 0.5,
+                    # c = 0.4,
                     # using all available cores
                     parallelType = "parallel",
                     packages = c("DEoptim", "tidyverse"),

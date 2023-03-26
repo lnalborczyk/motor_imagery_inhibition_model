@@ -5,7 +5,7 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 24, 2023                              #
+# Last updated on March 26, 2023                              #
 ###############################################################
 
 library(tidyverse)
@@ -43,7 +43,9 @@ model <- function (
         amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
         ) {
     
-    # defining the activation/inhibition lognormal base function
+    # defining the activation/inhibition rescaled lognormal function
+    # could also use a scaled gamma function?
+    # https://www.sciencedirect.com/science/article/abs/pii/S0010028515000195?via%3Dihub
     activation_inhibition_function <- function (
         time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
         ) {

@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 24, 2023             #
+# Last updated on March 26, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -12,24 +12,24 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# true parameter values in EI sequences
-true_pars <- c(1.5, 0.5, 0.4, 0.75, 1, 1.5)
+# true parameter values in EE sequences
+true_pars <- c(0.5, 0.4, 0.75, 1, 1.5)
 
 # simulating data
 df <- model(
-    nsims = 100, nsamples = 2000,
+    nsims = 200, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = true_pars[1],
-    peak_time_activ = true_pars[2],
-    curvature_activ = true_pars[3],
-    amplitude_inhib = true_pars[4] * true_pars[1],
-    peak_time_inhib = true_pars[5] * true_pars[2],
-    curvature_inhib = true_pars[6] * true_pars[3]
+    amplitude_activ = 1.5,
+    peak_time_activ = true_pars[1],
+    curvature_activ = true_pars[2],
+    amplitude_inhib = true_pars[3] * 1.5,
+    peak_time_inhib = true_pars[4] * true_pars[1],
+    curvature_inhib = true_pars[5] * true_pars[2]
     ) %>%
     # was the action executed or imagined?
     mutate(
         action_mode = ifelse(
-            test = true_pars[4] >= 1,
+            test = true_pars[3] >= 1,
             yes = "imagined", no = "executed"
             )
         ) %>%
@@ -47,7 +47,7 @@ df <- model(
 df %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
-    geom_density(alpha = 0.5, show.legend = FALSE) +
+    geom_density(color = "white", alpha = 0.6, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
@@ -63,23 +63,23 @@ df %>%
 # fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 200)
 
 # fitting the model using particle swarm optimisation
-# works well (error around 0.01) but quite slow
+# works well but quite slow (error around 0.01 for 1e3 iterations)
 fitting_results <- model_fitting(
-    par = c(1, 1, 1, 1, 1, 1), data = df,
+    par = c(1, 1, 1, 1, 1), data = df,
     method = "pso", maxit = 1e3
     )
 
 # fitting the model using a parallelised particle swarm optimisation
-# works well and slightly faster
+# works well and slightly faster (error around 0.02 for 1e3 iterations) 
 # fitting_results <- model_fitting(
-#     par = c(1, 1, 1, 1, 1, 1), data = df,
+#     par = c(1, 1, 1, 1, 1), data = df,
 #     method = "hydroPSO", maxit = 1e3
 #     )
 
 # fitting the model using differential evolution
-# seems to work best (error around 0.05) in short periods of time
+# seems to work best in short periods of time (error around 0.01 for 1e3 iterations)
 # fitting_results <- model_fitting(
-#     par = c(1, 1, 1, 1, 1, 1), data = df,
+#     par = c(1, 1, 1, 1, 1), data = df,
 #     method = "DEoptim", maxit = 1e3
 #     )
 
@@ -88,7 +88,7 @@ fitting_results <- model_fitting(
 # plot(x = fitting_results, plot.type = "bestvalit", type = "b", col = "steelblue")
 
 # getting a summary of the optimisation results
-summary(fitting_results)
+# summary(fitting_results)
 fitting_results$value
 fitting_results$par
 
@@ -99,7 +99,8 @@ estimated_pars <- fitting_results$par
 # plotting true parameter versus estimated parameter values
 data.frame(
     parameter = c(
-        "amplitude_activ", "peak_time_activ", "curvature_activ",
+        # "amplitude_activ",
+        "peak_time_activ", "curvature_activ",
         "amplitude_inhib", "peak_time_inhib", "curvature_inhib"
         ),
     true_pars = true_pars,
@@ -109,7 +110,8 @@ data.frame(
         parameter = factor(
             x = parameter,
             levels = c(
-                "amplitude_activ", "peak_time_activ", "curvature_activ",
+                # "amplitude_activ",
+                "peak_time_activ", "curvature_activ",
                 "amplitude_inhib", "peak_time_inhib", "curvature_inhib"
                 )
             )
@@ -122,20 +124,20 @@ data.frame(
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Parameter", y = "Parameter value")
 
-# plotting data simulated using the estimated parameters (ppc)
+# plotting data simulated using the estimated parameters
 model(
-    nsims = 100, nsamples = 2000,
+    nsims = 1e3, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = estimated_pars[1],
-    peak_time_activ = estimated_pars[2],
-    curvature_activ = estimated_pars[3],
-    amplitude_inhib = estimated_pars[4] * estimated_pars[1],
-    peak_time_inhib = estimated_pars[5] * estimated_pars[2],
-    curvature_inhib = estimated_pars[6] * estimated_pars[3]
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars[1],
+    curvature_activ = estimated_pars[2],
+    amplitude_inhib = estimated_pars[3] * 1.5,
+    peak_time_inhib = estimated_pars[4] * estimated_pars[1],
+    curvature_inhib = estimated_pars[5] * estimated_pars[2]
     ) %>%
     # was the action executed or imagined?
     mutate(
-        action_mode = ifelse(test = true_pars[4] >= 1, yes = "imagined", no = "executed")
+        action_mode = ifelse(test = true_pars[3] >= 1, yes = "imagined", no = "executed")
         ) %>%
     # keeping only the relevant columns
     dplyr::select(
@@ -148,25 +150,20 @@ model(
     dplyr::select(-sim) %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
-    # geom_density(
-    #     data = df %>% pivot_longer(cols = reaction_time:movement_time),
-    #     alpha = 0.5, show.legend = FALSE
-    #     ) +
-    geom_histogram(
+    geom_density(
         data = df %>% pivot_longer(cols = reaction_time:movement_time),
         color = "white",
         position = "identity",
-        bins = 30, alpha = 0.5, show.legend = FALSE
+        alpha = 0.5, show.legend = FALSE
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
-        title = "Predictive checking",
-        subtitle = "Observed data vs. simulated data",
-        x = "Reaction/Movement time (in seconds)",
-        y = "Density"
+        title = "Observed and simulated distributions of RTs/MTs",
+        subtitle = "Distributions of RTs and MTs in executed-executed sequences",
+        x = "Reaction/Movement time (in seconds)", y = "Density"
         )
 
 # saving the plot
