@@ -3,11 +3,12 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 26, 2023            #
+# Last updated on March 27, 2023            #
 #############################################
 
 library(hydroPSO) # particle swarm optimisation
 library(DEoptim) # global optimisation by differential evolution
+library(rgenoud) # evolutionary algorithm plus derivative-based
 library(optimx) # various optimisation methods
 library(GenSA) # generalised simulated annealing
 library(pso) # particle swarm optimisation
@@ -22,8 +23,8 @@ loss_function <- function (
     # how many trials should we simulate? if null, by default nrow(data)
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
     
-    # setting an arbitrary values for the amplitude of the activation function
-    amplitude_activ <- 1.5 # par[[1]]
+    # setting an arbitrary value for the amplitude of the activation function
+    amplitude_activ <- 1
     
     # retrieving parameter values for the activation function
     peak_time_activ <- par[[1]]
@@ -36,6 +37,42 @@ loss_function <- function (
     peak_time_inhib <- par[[4]] * peak_time_activ
     curvature_inhib <- par[[5]] * curvature_activ
     
+    #################################################################################
+    # adding some constraints
+    # ------------------------------------------------------------------------------
+    # amplitude_inhib should be >= amplitude_activ in imagined trials
+    # amplitude_activ should be >= amplitude_inhib in executed trials
+    # curvature_activ should be lower than curvature inhib 
+    # balance peak time can not be smaller than the shortest RT
+    ###############################################################################
+    
+    # computing the balance peak time
+    balance_peak_time <- exp(
+        (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
+            (curvature_inhib^2 - curvature_activ^2) )
+    
+    if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
+
+        prediction_error <- 1e9
+        return (prediction_error)
+
+    } else if (unique(data$action_mode) == "executed" & amplitude_inhib > amplitude_activ) {
+
+        prediction_error <- 1e9
+        return (prediction_error)
+        
+    # } else if (curvature_activ >= curvature_inhib) {
+    #     
+    #     prediction_error <- 1e9
+    #     return (prediction_error)
+        
+    } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
+        
+        prediction_error <- 1e9
+        return (prediction_error)
+        
+    }
+    
     # simulating some data from the data-generating model
     results <- model(
         nsims = nsims, nsamples = nsamples,
@@ -47,27 +84,6 @@ loss_function <- function (
         peak_time_inhib = peak_time_inhib,
         curvature_inhib = curvature_inhib
         )
-    
-    # adding some constraints
-    # amplitude_inhib should be >= amplitude_activ in imagined trials
-    # amplitude_activ should be >= amplitude_inhib in executed trials
-    # curvature_inhib should be >= curvature_activ
-    if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
-
-        prediction_error <- 1e6
-        return (prediction_error)
-
-    } else if (unique(data$action_mode) == "executed" & amplitude_inhib > amplitude_activ) {
-
-        prediction_error <- 1e6
-        return (prediction_error)
-
-    } else if (curvature_activ > curvature_inhib) {
-        
-        prediction_error <- 1e6
-        return (prediction_error)
-        
-    }
     
     # retrieving distribution of simulated RTs
     if (unique(data$action_mode) == "imagined") {
@@ -120,11 +136,15 @@ loss_function <- function (
         
     }
     
+    # what quantiles should we look at?
+    # quantile_probs <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+    quantile_probs <- c(0.1, 0.3, 0.5, 0.7, 0.9)
+    
     # computes observed RT quantiles
-    observed_rt_quantiles <- quantile(x = data$reaction_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+    observed_rt_quantiles <- quantile(x = data$reaction_time, probs = quantile_probs, na.rm = TRUE)
     
     # computes observed MT quantiles
-    observed_mt_quantiles <- quantile(x = data$movement_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+    observed_mt_quantiles <- quantile(x = data$movement_time, probs = quantile_probs, na.rm = TRUE)
     
     # computes observed proportion of data in RT quantiles
     observed_rt_quantiles_props <- find_quantiles_props(x = data$reaction_time, quants = observed_rt_quantiles)
@@ -158,14 +178,11 @@ loss_function <- function (
     # makes sure proportions sum to 1
     predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
     
-    # computes the G^2 prediction error (combined for RTs and MTs)
+    # computes the G^2 prediction error (except it is not multiplied by 2)
+    # which is the error for RTs plus the error for MTs
     # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018)
-    prediction_error <- 2 * (
-        # error for RTs
-        sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
-            # error for MTs
-            sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
-        )
+    prediction_error <- sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
+        sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
     
     # returns the prediction error
     return (prediction_error)
@@ -173,12 +190,11 @@ loss_function <- function (
 }
 
 # fitting the model
-# see https://cran.r-project.org/web/views/Optimization.html
 model_fitting <- function (
         par, data,
         method = c(
-            "SANN", "GenSA", "pso", "DEoptim", "Nelder-Mead", "BFGS",
-            "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
+            "SANN", "GenSA", "pso", "DEoptim", "rgenoud",
+            "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
             ),
         maxit = 1e2
         ) {
@@ -230,6 +246,22 @@ model_fitting <- function (
                     parallel = "parallel"
                     )
                 )
+
+        } else if (method == "rgenoud") {
+
+            fit <- rgenoud::genoud(
+                fn = loss_function,
+                nvars = length(par),
+                wait.generations = 5,
+                starting.values = par,
+                Domains = matrix(
+                    rep(0, length(par) ), rep(2, length(par) ),
+                    nrow = length(par), ncol = 2
+                    ),
+                data.type.int = FALSE,
+                print.level = 2,
+                data = df
+                )
             
         } else if (method == "DEoptim") {
             
@@ -239,12 +271,15 @@ model_fitting <- function (
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
                 control = DEoptim.control(
-                    itermax = maxit, trace = 2,
+                    itermax = maxit, trace = TRUE,
                     # defines the differential evolution strategy (defaults to 2)
                     # strategy = 6,
                     # value to reach (defaults to -Inf)
                     VTR = 0,
-                    # c controls the speed of the crossover adaptation (defaults to 0)
+                    # number of population members (by default 10*length(lower) )
+                    # NP = 100,
+                    # c controls the speed of the crossover adaptation
+                    # when strategy = 6 (defaults to 0)
                     # c = 0.4,
                     # using all available cores
                     parallelType = "parallel",

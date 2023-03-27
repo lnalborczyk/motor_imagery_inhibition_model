@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                   #
 # E-mail: ladislas.nalborczyk@gmail.com                            #
-# Last update: March 9, 2023                                       #
+# Last update: March 27, 2023                                      #
 ####################################################################
 
 library(shinyhelper)
@@ -208,7 +208,6 @@ server <- function(input, output) {
                 args = list(
                     amplitude = input$activation_alpha,
                     peak_time = input$activation_beta,
-                    # peak_time = t0_inhibition_previous,
                     curvature = input$activation_lambda
                     )
                 ) +
@@ -304,7 +303,6 @@ server <- function(input, output) {
             mutate(mt = offset - onset) %>%
             ggplot(aes(x = x) ) +
             geom_hline(yintercept = input$imag_threshold, linetype = 2) +
-            # geom_hline(yintercept = input$exec_threshold, linetype = 2) +
             geom_line(aes(y = balance), col = "steelblue", linewidth = 1) +
             geom_segment(
                 aes(x = 0, y = input$imag_threshold, xend = unique(onset), yend = input$imag_threshold),

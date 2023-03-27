@@ -1,11 +1,11 @@
 ###############################################################
 # A simplistic model of motor inhibition during motor imagery #
 # Generates distributions of RTs and MTs according to the     #
-# net balance between excitatory and inhibitory inputs        #
+# balance between excitatory and inhibitory inputs            #
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 26, 2023                              #
+# Last updated on March 27, 2023                              #
 ###############################################################
 
 library(tidyverse)
@@ -14,14 +14,11 @@ library(MetBrewer)
 
 #############################################################################
 # General function - Parameters
-# For alternative parametrisations of the lognormal distribution,
-# see https://en.wikipedia.org/wiki/Log-normal_distribution
 # ----------------------------------------------------------------------
-# nsims: number of random walks (number of simulations/trials)
+# nsims: number of simulations (observations/trials)
 # nsamples: number of samples (time steps) within a trial
 # exec_threshold: motor execution threshold
 # threshold_prop: motor imagery threshold
-# iti: inter-trial time interval (in seconds)
 # amplitude_activ: amplitude of the activation function
 # peak_time_activ: peak time of the activation function
 # curvature_activ: curvature of the activation function
@@ -29,12 +26,6 @@ library(MetBrewer)
 # peak_time_inhib: peak time of the inhibition function
 # curvature_inhib: curvature of the inhibition function
 #################################################################
-
-# for testing purposes
-# nsims = 1e2; nsamples = 1e3;
-# exec_threshold = 1; imag_threshold = 0.5;
-# amplitude_activ = 1.5; peak_time_activ = 0.5; curvature_activ = 0.8;
-# amplitude_inhib = 1.5; peak_time_inhib = 0.5; curvature_inhib = 1.2;
 
 model <- function (
         nsims = 1e2, nsamples = 1e3,
@@ -46,6 +37,7 @@ model <- function (
     # defining the activation/inhibition rescaled lognormal function
     # could also use a scaled gamma function?
     # https://www.sciencedirect.com/science/article/abs/pii/S0010028515000195?via%3Dihub
+    # peak time (in seconds) is given by exp(peak_time)
     activation_inhibition_function <- function (
         time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
         ) {
@@ -58,7 +50,8 @@ model <- function (
     
     # or directly computing the balance (ratio) between activation and
     # inhibition in the current trial (activation/inhibition)
-    # basically a ratio of two base (unnormalised) lognormal distribution
+    # basically a ratio of two rescaled lognormal distribution
+    # the mode of the function is given by exp((mu_f * sigma_g^2 - mu_g * sigma_f^2) / (sigma_g^2 - sigma_f^2) )
     balance_funtion <- function (
         time = 0,
         amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4, 
@@ -66,6 +59,7 @@ model <- function (
         ) {
         
         # adding some variability in the other parameters
+        # variability is currently fixed but could also be estimated
         amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.01)
         peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.01)
         curvature_activ_sim <- rnorm(n = 1, mean = curvature_activ, sd = 0.01)
@@ -113,6 +107,7 @@ model <- function (
         #         curvature = curvature_inhib
         #         )
         #     ) %>%
+        # mutate(balance = activation / inhibition) %>%
         mutate(
             balance = balance_funtion(
                 time = seq.int(from = 0, to = 5, length.out = nsamples),
@@ -124,8 +119,10 @@ model <- function (
                 curvature_inhib = curvature_inhib
                 )
             ) %>%
+        # numerically finding the balance's onset (RT) and offset
         mutate(onset_exec = which(balance > exec_threshold) %>% first() ) %>%
         mutate(offset_exec = which(balance > exec_threshold) %>% last() ) %>%
+        # MT is defined as offset minus onset
         mutate(mt_exec = offset_exec - onset_exec) %>%
         mutate(onset_imag = which(balance > imag_threshold) %>% first() ) %>%
         mutate(offset_imag = which(balance > imag_threshold) %>% last() ) %>%

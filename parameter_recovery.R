@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 26, 2023             #
+# Last updated on March 27, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -17,12 +17,12 @@ true_pars <- c(0.5, 0.4, 0.75, 1, 1.5)
 
 # simulating data
 df <- model(
-    nsims = 200, nsamples = 2000,
+    nsims = 100, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    amplitude_activ = 1,
     peak_time_activ = true_pars[1],
     curvature_activ = true_pars[2],
-    amplitude_inhib = true_pars[3] * 1.5,
+    amplitude_inhib = true_pars[3] * 1,
     peak_time_inhib = true_pars[4] * true_pars[1],
     curvature_inhib = true_pars[5] * true_pars[2]
     ) %>%
@@ -49,38 +49,55 @@ df %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(color = "white", alpha = 0.6, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_fill_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(x = "Reaction/Movement time (in seconds)", y = "Density")
 
 # fitting the model using all methods available in optimx::optimx() (does not work)
-# fitting_results <- model_fitting(data = df, method = "all_methods", maxit = 200)
+# fitting_results <- model_fitting(
+#     data = df, par = c(1, 1, 1, 1, 1),
+#     method = "all_methods", maxit = 100
+#     )
 
 # fitting the model using simulated annealing (works better but slow)
-# fitting_results <- model_fitting(data = df, method = "SANN", maxit = 200)
+# fitting_results <- model_fitting(
+#     data = df, par = c(1, 1, 1, 1, 1),
+#     method = "SANN", maxit = 200
+#     )
 
 # fitting the model using generalised simulated annealing (works much better but slow)
-# fitting_results <- model_fitting(data = df, method = "GenSA", maxit = 200)
+# fitting_results <- model_fitting(
+#     data = df, par = c(1, 1, 1, 1, 1),
+#     method = "GenSA", maxit = 200
+#     )
 
 # fitting the model using particle swarm optimisation
 # works well but quite slow (error around 0.01 for 1e3 iterations)
-fitting_results <- model_fitting(
-    par = c(1, 1, 1, 1, 1), data = df,
-    method = "pso", maxit = 1e3
-    )
+# fitting_results <- model_fitting(
+#     par = c(1, 1, 1, 1, 1), data = df,
+#     method = "pso", maxit = 1e3
+#     )
 
 # fitting the model using a parallelised particle swarm optimisation
-# works well and slightly faster (error around 0.02 for 1e3 iterations) 
+# works well and slightly faster (error around 0.01 for 1e3 iterations)
 # fitting_results <- model_fitting(
 #     par = c(1, 1, 1, 1, 1), data = df,
 #     method = "hydroPSO", maxit = 1e3
 #     )
 
 # fitting the model using differential evolution
-# seems to work best in short periods of time (error around 0.01 for 1e3 iterations)
-# fitting_results <- model_fitting(
-#     par = c(1, 1, 1, 1, 1), data = df,
-#     method = "DEoptim", maxit = 1e3
+# seems to work best in short periods of time
+# (error around 0.1 for 200 iterations and 0.01 for 1e3 iterations)
+fitting_results <- model_fitting(
+    par = c(1, 1, 1, 1, 1), data = df,
+    method = "DEoptim", maxit = 200
+    )
+
+# maybe try polish the estimated parameters with a second run?
+# fitting_results2 <- model_fitting(
+#     par = as.numeric(fitting_results$optim$bestmem),
+#     data = df,
+#     method = "L-BFGS-B", maxit = 100
 #     )
 
 # plotting the optimisation results (for DEoptim only)
@@ -88,18 +105,17 @@ fitting_results <- model_fitting(
 # plot(x = fitting_results, plot.type = "bestvalit", type = "b", col = "steelblue")
 
 # getting a summary of the optimisation results
-# summary(fitting_results)
+summary(fitting_results)
 fitting_results$value
 fitting_results$par
 
 # retrieving estimated parameter values
-# estimated_pars <- fitting_results$optim$bestmem
-estimated_pars <- fitting_results$par
+estimated_pars <- as.numeric(fitting_results$optim$bestmem)
+# estimated_pars <- as.numeric(fitting_results$par)
 
 # plotting true parameter versus estimated parameter values
 data.frame(
     parameter = c(
-        # "amplitude_activ",
         "peak_time_activ", "curvature_activ",
         "amplitude_inhib", "peak_time_inhib", "curvature_inhib"
         ),
@@ -110,7 +126,6 @@ data.frame(
         parameter = factor(
             x = parameter,
             levels = c(
-                # "amplitude_activ",
                 "peak_time_activ", "curvature_activ",
                 "amplitude_inhib", "peak_time_inhib", "curvature_inhib"
                 )
@@ -118,7 +133,16 @@ data.frame(
         ) %>%
     pivot_longer(cols = true_pars:estimated_pars) %>%
     ggplot(aes(x = parameter, y = value, colour = name) ) +
-    geom_point(size = 2, alpha = 0.8) +
+    geom_hline(yintercept = 1, lty = 2) +
+    geom_line(aes(group = name), size = 0.5, show.legend = FALSE) +
+    geom_point(aes(shape = name), size = 3, show.legend = FALSE) +
+    geom_label(
+        data = . %>% filter(parameter == "curvature_inhib"),
+        aes(label = name),
+        nudge_x = 0.3,
+        show.legend = FALSE
+        ) +
+    ylim(c(0, 2) ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
@@ -126,7 +150,7 @@ data.frame(
 
 # plotting data simulated using the estimated parameters
 model(
-    nsims = 1e3, nsamples = 2000,
+    nsims = 500, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars[1],
@@ -156,7 +180,7 @@ model(
         position = "identity",
         alpha = 0.5, show.legend = FALSE
         ) +
-    geom_density(size = 1, fill = NA, show.legend = FALSE) +
+    geom_density(linewidth = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
