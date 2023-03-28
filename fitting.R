@@ -3,39 +3,39 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 27, 2023            #
+# Last updated on March 28, 2023            #
 #############################################
 
 library(hydroPSO) # particle swarm optimisation
 library(DEoptim) # global optimisation by differential evolution
-library(rgenoud) # evolutionary algorithm plus derivative-based
 library(optimx) # various optimisation methods
 library(GenSA) # generalised simulated annealing
 library(pso) # particle swarm optimisation
 
 # simulating some data and computing the prediction error
 loss_function <- function (
-        par = c(1, 1, 1, 1, 1), data,
+        par = c(1, 1, 1), data,
         nsims = NULL, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5
         ) {
     
     # how many trials should we simulate? if null, by default nrow(data)
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
+    # if (is.null(nsims) ) nsims <- 1e3
     
     # setting an arbitrary value for the amplitude of the activation function
-    amplitude_activ <- 1
+    amplitude_activ <- 1.5
+    
+    # setting a value for the ratio amplitude_activ / amplitude_inhib
+    amplitude_inhib <- amplitude_activ / par[[1]]
     
     # retrieving parameter values for the activation function
-    peak_time_activ <- par[[1]]
-    curvature_activ <- par[[2]]
+    peak_time_activ <- par[[2]]
+    curvature_activ <- 0.4
     
     # retrieving parameter values for the inhibition function
-    # amplitude_inhib, peak_time_inhib, and curvature_inhib are expressed
-    # in % of amplitude_activ, peak_time_activ, and curvature_activ
-    amplitude_inhib <- par[[3]] * amplitude_activ
-    peak_time_inhib <- par[[4]] * peak_time_activ
-    curvature_inhib <- par[[5]] * curvature_activ
+    peak_time_inhib <- par[[3]]
+    curvature_inhib <- 0.6
     
     #################################################################################
     # adding some constraints
@@ -47,31 +47,27 @@ loss_function <- function (
     ###############################################################################
     
     # computing the balance peak time
-    balance_peak_time <- exp(
-        (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
-            (curvature_inhib^2 - curvature_activ^2) )
-    
-    if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
-
-        prediction_error <- 1e9
-        return (prediction_error)
-
-    } else if (unique(data$action_mode) == "executed" & amplitude_inhib > amplitude_activ) {
-
-        prediction_error <- 1e9
-        return (prediction_error)
-        
-    # } else if (curvature_activ >= curvature_inhib) {
-    #     
-    #     prediction_error <- 1e9
+    # balance_peak_time <- exp(
+    #     (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
+    #         (curvature_inhib^2 - curvature_activ^2) )
+    # 
+    # if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
+    # 
+    #     prediction_error <- 1e6
     #     return (prediction_error)
-        
-    } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
-        
-        prediction_error <- 1e9
-        return (prediction_error)
-        
-    }
+    # 
+    # } else if (unique(data$action_mode) == "executed" & amplitude_inhib > amplitude_activ) {
+    # 
+    #     prediction_error <- 1e6
+    #     return (prediction_error)
+    #     
+    # 
+    # } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
+    # 
+    #     prediction_error <- 1e6
+    #     return (prediction_error)
+    # 
+    # }
     
     # simulating some data from the data-generating model
     results <- model(
@@ -137,7 +133,6 @@ loss_function <- function (
     }
     
     # what quantiles should we look at?
-    # quantile_probs <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
     quantile_probs <- c(0.1, 0.3, 0.5, 0.7, 0.9)
     
     # computes observed RT quantiles
@@ -193,7 +188,7 @@ loss_function <- function (
 model_fitting <- function (
         par, data,
         method = c(
-            "SANN", "GenSA", "pso", "DEoptim", "rgenoud",
+            "SANN", "GenSA", "pso", "DEoptim",
             "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
             ),
         maxit = 1e2
@@ -246,22 +241,6 @@ model_fitting <- function (
                     parallel = "parallel"
                     )
                 )
-
-        } else if (method == "rgenoud") {
-
-            fit <- rgenoud::genoud(
-                fn = loss_function,
-                nvars = length(par),
-                wait.generations = 5,
-                starting.values = par,
-                Domains = matrix(
-                    rep(0, length(par) ), rep(2, length(par) ),
-                    nrow = length(par), ncol = 2
-                    ),
-                data.type.int = FALSE,
-                print.level = 2,
-                data = df
-                )
             
         } else if (method == "DEoptim") {
             
@@ -297,7 +276,7 @@ model_fitting <- function (
                 method = method,
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
-                control = list(maxit = maxit, trace = 2)
+                control = list(maxit = maxit, trace = 6)
                 )
             
         } else if (method == "all_methods") {

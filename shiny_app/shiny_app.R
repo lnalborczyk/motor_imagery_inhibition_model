@@ -4,7 +4,7 @@
 # ---------------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                                   #
 # E-mail: ladislas.nalborczyk@gmail.com                            #
-# Last update: March 27, 2023                                      #
+# Last update: March 28, 2023                                      #
 ####################################################################
 
 library(shinyhelper)
@@ -39,7 +39,7 @@ ui <- fluidPage(
                 inputId = "activation_beta",
                 label = "Peak time of the activation curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 1, step = 0.01
+                min = 0, max = 2, value = 0.5, step = 0.01
                 ),
             sliderInput(
                 inputId = "activation_lambda",
@@ -57,7 +57,7 @@ ui <- fluidPage(
                 inputId = "inhibition_beta",
                 label = "Peak time of the inhibition curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 1, step = 0.01
+                min = 0, max = 2, value = 0.5, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_lambda",
@@ -118,10 +118,13 @@ server <- function(input, output) {
 
     output$distPlot <- renderPlot({
         
+        # defining the time scaling factor
+        timescale <- 5
+        
         # defining the activation function for the current trial
         activation <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8) {
             
-            activ <- amplitude * exp(-(log(time * 5) - peak_time)^2 / (2 * curvature^2) )
+            activ <- amplitude * exp(-(log(time * timescale) - peak_time)^2 / (2 * curvature^2) )
             
             return (activ)
             
@@ -130,7 +133,7 @@ server <- function(input, output) {
         # defining the activation function for the previous trials
         activation_previous <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8, delay = 10) {
             
-            activ <- amplitude * exp(-(log(delay + time * 5) - peak_time)^2 / (2 * curvature^2) )
+            activ <- amplitude * exp(-(log(delay + time * timescale) - peak_time)^2 / (2 * curvature^2) )
             
             return (activ)
             
@@ -139,7 +142,7 @@ server <- function(input, output) {
         # defining the inhibition function for the current trial
         inhibition <- function (time = 0, amplitude = 2, peak_time = 0.5, curvature = 1.2) {
             
-            inhib <- amplitude * exp(-(log(time * 5) - peak_time)^2 / (2 * curvature^2) )
+            inhib <- amplitude * exp(-(log(time * timescale) - peak_time)^2 / (2 * curvature^2) )
             
             return (inhib)
             
@@ -147,7 +150,7 @@ server <- function(input, output) {
         
         inhibition_previous <- function (time = 0, amplitude = 2, peak_time = 0.5, curvature = 1.2, delay = 10) {
             
-            inhib <- amplitude * exp(-(log(delay + time * 5) - peak_time)^2 / (2 * curvature^2) )
+            inhib <- amplitude * exp(-(log(delay + time * timescale) - peak_time)^2 / (2 * curvature^2) )
             
             return (inhib)
             
@@ -163,8 +166,8 @@ server <- function(input, output) {
             
             # computing the balance
             balance_output <- activation(time = time, amplitude = activation_amplitude, peak_time = activation_peak_time, curvature = activation_curvature) /
-                (inhibition(time = time, amplitude = inhibition_amplitude, peak_time = inhibition_peak_time, curvature = inhibition_curvature) +
-                     inhibition_previous(time = time, amplitude = inhibition_previous_amplitude, peak_time = inhibition_previous_peak_time, curvature = inhibition_previous_curvature, delay = delay)
+                (inhibition(time = time, amplitude = inhibition_amplitude, peak_time = inhibition_peak_time, curvature = inhibition_curvature)
+                     # inhibition_previous(time = time, amplitude = inhibition_previous_amplitude, peak_time = inhibition_previous_peak_time, curvature = inhibition_previous_curvature, delay = delay)
                      # balance_previous(time = time, inhibition_previous_amplitude = inhibition_previous_amplitude, inhibition_previous_peak_time = inhibition_previous_peak_time, inhibition_previous_curvature = inhibition_previous_curvature, delay = delay)
                  )
             
@@ -208,6 +211,7 @@ server <- function(input, output) {
                 args = list(
                     amplitude = input$activation_alpha,
                     peak_time = input$activation_beta,
+                    # peak_time = log(ifelse(input$activation_beta == 0, input$activation_beta + 1e-6, input$activation_beta) ),
                     curvature = input$activation_lambda
                     )
                 ) +
@@ -217,6 +221,7 @@ server <- function(input, output) {
                 args = list(
                     amplitude = input$inhibition_alpha,
                     peak_time = input$inhibition_beta,
+                    # peak_time = log(ifelse(input$inhibition_beta == 0, input$inhibition_beta + 1e-6, input$inhibition_beta) ),
                     curvature = input$inhibition_lambda
                     )
                 ) +
@@ -226,6 +231,7 @@ server <- function(input, output) {
                 args = list(
                     amplitude = input$inhibition_previous_alpha,
                     peak_time = input$inhibition_previous_beta,
+                    # peak_time = log(ifelse(input$inhibition_previous_beta == 0, input$inhibition_previous_beta + 1e-6, input$inhibition_previous_beta) ),
                     curvature = input$inhibition_previous_lambda,
                     delay = input$delay
                     )
@@ -236,32 +242,35 @@ server <- function(input, output) {
                 args = list(
                     activation_amplitude = input$activation_alpha,
                     activation_peak_time = input$activation_beta,
+                    # activation_peak_time = log(ifelse(input$activation_peak_time == 0, input$activation_peak_time + 1e-6, input$activation_peak_time) ),
                     activation_curvature = input$activation_lambda,
                     inhibition_amplitude = input$inhibition_alpha,
                     inhibition_peak_time = input$inhibition_beta,
+                    # inhibition_peak_time = log(ifelse(input$inhibition_peak_time == 0, input$inhibition_peak_time + 1e-6, input$inhibition_peak_time) ),
                     inhibition_curvature = input$inhibition_lambda,
                     inhibition_previous_amplitude = input$inhibition_previous_alpha,
                     inhibition_previous_peak_time = input$inhibition_previous_beta,
+                    # inhibition_previous_peak_time = log(ifelse(input$inhibition_previous_peak_time == 0, input$inhibition_previous_peak_time + 1e-6, input$inhibition_previous_peak_time) ),
                     inhibition_previous_curvature = input$inhibition_previous_lambda,
                     delay = input$delay
                     )
                 ) +
-            stat_function(
-                fun = balance_previous,
-                color = "steelblue", linewidth = 1, lty = 2,
-                args = list(
-                    # activation_amplitude = input$activation_alpha,
-                    # activation_peak_time = input$activation_beta,
-                    # activation_curvature = input$activation_lambda,
-                    # inhibition_amplitude = input$inhibition_alpha,
-                    # inhibition_peak_time = input$inhibition_beta,
-                    # inhibition_curvature = input$inhibition_lambda,
-                    inhibition_previous_amplitude = input$inhibition_previous_alpha,
-                    inhibition_previous_peak_time = input$inhibition_previous_beta,
-                    inhibition_previous_curvature = input$inhibition_previous_lambda,
-                    delay = input$delay
-                    )
-                ) +
+            # stat_function(
+            #     fun = balance_previous,
+            #     color = "steelblue", linewidth = 1, lty = 2,
+            #     args = list(
+            #         # activation_amplitude = input$activation_alpha,
+            #         # activation_peak_time = input$activation_beta,
+            #         # activation_curvature = input$activation_lambda,
+            #         # inhibition_amplitude = input$inhibition_alpha,
+            #         # inhibition_peak_time = input$inhibition_beta,
+            #         # inhibition_curvature = input$inhibition_lambda,
+            #         inhibition_previous_amplitude = input$inhibition_previous_alpha,
+            #         inhibition_previous_peak_time = input$inhibition_previous_beta,
+            #         inhibition_previous_curvature = input$inhibition_previous_lambda,
+            #         delay = input$delay
+            #         )
+            #     ) +
             theme_bw(base_size = 14, base_family = "Open Sans") +
             scale_colour_manual(values = met.brewer(name = "Johnson", n = 3) ) +
             labs(
@@ -279,25 +288,29 @@ server <- function(input, output) {
                     time = x,
                     amplitude = input$activation_alpha,
                     peak_time = input$activation_beta,
+                    # peak_time = log(ifelse(input$activation_beta == 0, input$activation_beta + 1e-6, input$activation_beta) ),
                     curvature = input$activation_lambda
                     ),
                 inhibition = inhibition(
                     time = x,
                     amplitude = input$inhibition_alpha,
                     peak_time = input$inhibition_beta,
+                    # peak_time = log(ifelse(input$inhibition_beta == 0, input$inhibition_beta + 1e-6, input$inhibition_beta) ),
                     curvature = input$inhibition_lambda
                     ),
                 inhibition_previous = inhibition_previous(
                     time = x,
                     amplitude = input$inhibition_previous_alpha,
                     peak_time = input$inhibition_previous_beta,
+                    # peak_time = log(ifelse(input$inhibition_previous_beta == 0, input$inhibition_previous_beta + 1e-6, input$inhibition_previous_beta) ),
                     curvature = input$inhibition_previous_lambda,
                     delay = input$delay
                     ),
                 exec_threshold = input$exec_threshold,
                 imag_threshold = input$imag_threshold
                 ) %>%
-            mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+            # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+            mutate(balance = activation / inhibition) %>%
             mutate(onset = x[which(balance > imag_threshold) %>% first()]) %>%
             mutate(offset = x[which(balance > imag_threshold) %>% last()]) %>%
             mutate(mt = offset - onset) %>%
@@ -335,25 +348,29 @@ server <- function(input, output) {
                     time = x,
                     amplitude = input$activation_alpha,
                     peak_time = input$activation_beta,
+                    # peak_time = log(ifelse(input$activation_beta == 0, input$activation_beta + 1e-6, input$activation_beta) ),
                     curvature = input$activation_lambda
                     ),
                 inhibition = inhibition(
                     time = x,
                     amplitude = input$inhibition_alpha,
                     peak_time = input$inhibition_beta,
+                    # peak_time = log(ifelse(input$inhibition_beta == 0, input$inhibition_beta + 1e-6, input$inhibition_beta) ),
                     curvature = input$inhibition_lambda
                     ),
                 inhibition_previous = inhibition_previous(
                     time = x,
                     amplitude = input$inhibition_previous_alpha,
                     peak_time = input$inhibition_previous_beta,
+                    # peak_time = log(ifelse(input$inhibition_previous_beta == 0, input$inhibition_previous_beta + 1e-6, input$inhibition_previous_beta) ),
                     curvature = input$inhibition_previous_lambda,
                     delay = input$delay
                     ),
                 exec_threshold = input$exec_threshold,
                 imag_threshold = input$imag_threshold
                 ) %>%
-            mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+            # mutate(balance = activation / (inhibition + inhibition_previous) ) %>%
+            mutate(balance = activation / inhibition) %>%
             mutate(onset = x[which(balance > exec_threshold) %>% first()]) %>%
             mutate(offset = x[which(balance > exec_threshold) %>% last()]) %>%
             mutate(mt = offset - onset) %>%
