@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 28, 2023             #
+# Last updated on March 29, 2023             #
 ##############################################
 
 library(tidyverse)
@@ -93,7 +93,7 @@ df_EE %>%
 
 ##############################################################################
 # Fitting the model
-# 3 free parameters are activation_amplitude /inhibition_amplitude ratio,
+# 3 free parameters are the activation/inhibition amplitude ratio,
 # activation_peak_time, and inhibition_peak_time
 ############################################################################
 
@@ -106,17 +106,22 @@ source(file = "fitting.R")
 # fitting the model using differential evolution
 fitting_results_IE <- model_fitting(
     par = c(1, 1, 1), data = df_IE,
-    method = "DEoptim", maxit = 100
+    method = "DEoptim", maxit = 500
     )
 
 fitting_results_EE <- model_fitting(
     par = c(1, 1, 1), data = df_EE,
-    method = "DEoptim", maxit = 100
+    method = "DEoptim", maxit = 500
     )
 
 # getting a summary of the optimisation results
 # summary(fitting_results_IE)
 # summary(fitting_results_EE)
+
+# best parameter estimates in IE sequences are
+# 0.476630 1.320206 1.981822 (bestvalit around 0.188986)
+# best parameter estimates in EE sequences are
+# 0.487768 1.308686 1.961930 (bestvalit around 0.177726)
 
 # best parameter estimates in IE sequences are
 # 1.0547 0.23837 0.89721 1.3295 1.5538 (bestvalit around 0.03077)
@@ -128,15 +133,20 @@ fitting_results_EE <- model_fitting(
 # estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
 
 # fitting the model using particle swarm optimisation
-# fitting_results_IE <- model_fitting(
-#     par = c(1, 1, 1, 1, 1), data = df_IE,
+# fitting_results_IE_pso <- model_fitting(
+#     par = c(1, 1, 1), data = df_IE,
 #     method = "pso", maxit = 2000
 #     )
 # 
-# fitting_results_EE <- model_fitting(
-#     par = c(1, 1, 1, 1, 1), data = df_EE,
+# fitting_results_EE_pso <- model_fitting(
+#     par = c(1, 1, 1), data = df_EE,
 #     method = "pso", maxit = 2000
 #     )
+
+# best parameter estimates in IE sequences are
+# 0.5501751 1.2858752 1.8942179 (bestvalit around 0.2502)
+# best parameter estimates in EE sequences are
+# 0.47419 1.32958 1.98809  (bestvalit around 0.21093)
 
 # best parameter estimates in IE sequences are
 # 0.5477616132 0.2876862846 0.9583299498 0.0005916149 1.8014553519 (bestvalit around 0.05069868)
@@ -189,7 +199,6 @@ sim_IE %>%
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # coord_cartesian(xlim = c(0.25, 1.25) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
@@ -198,7 +207,7 @@ sim_IE %>%
         x = "Reaction/Movement time (in seconds)", y = "Density"
         )
 
-# simulating data with the estimated parameters (kind of ppc)
+# simulating data with the estimated parameters
 sim_EE <- model(
     nsims = 1000, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,

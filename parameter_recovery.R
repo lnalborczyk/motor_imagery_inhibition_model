@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 28, 2023             #
+# Last updated on March 29, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -88,17 +88,20 @@ df %>%
 # fitting the model using differential evolution
 # seems to work best in short periods of time
 # (error around 0.1 for 200 iterations and 0.01 for 1e3 iterations)
+# g2 and sse seem to work great (but not rmse)
 fitting_results <- model_fitting(
     par = c(1, 1, 1), data = df,
-    method = "DEoptim", maxit = 500
+    error_function = "sse",
+    method = "DEoptim", maxit = 200
     )
 
 # maybe try polishing the estimated parameters with a second simplex run?
-# fitting_results2 <- model_fitting(
-#     par = as.numeric(fitting_results$optim$bestmem),
-#     data = df,
-#     method = "all_methods", maxit = 20
-#     )
+fitting_results2 <- model_fitting(
+    par = as.numeric(fitting_results$optim$bestmem),
+    data = df, nsims = 1e3, 
+    error_function = "sse",
+    method = "L-BFGS-B", maxit = 50
+    )
 
 # plotting the optimisation results (for DEoptim only)
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")
@@ -111,6 +114,7 @@ summary(fitting_results)
 
 # retrieving estimated parameter values
 # estimated_pars <- as.numeric(fitting_results$par)
+# estimated_pars <- as.numeric(fitting_results2[1:3])
 estimated_pars <- as.numeric(fitting_results$optim$bestmem)
 
 # plotting true parameter versus estimated parameter values
@@ -188,11 +192,11 @@ model(
         )
 
 # saving the plot
-ggsave(
-    filename = "figures/predictive_checks.png",
-    width = 12, height = 8, dpi = 300,
-    device = "png"
-    )
+# ggsave(
+#     filename = "figures/predictive_checks.png",
+#     width = 12, height = 8, dpi = 300,
+#     device = "png"
+#     )
 
 ############################################
 # full parameter recovery study
@@ -207,37 +211,57 @@ source(file = "fitting.R")
 # number of simulated "studies" to run
 nstudies <- 20
 
-# number of free parameters
-npars <- 3
+# free parameters
+parameters <- c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
 
 # should also vary N (as in White et al., 2019)
-# nobs <- c(50, 100, 200, 500)
+nobs <- c(50, 100, 200, 500)
 
 # initialise results dataframe
-par_recov_results <- data.frame(
-    study = rep(1:nstudies, each = npars),
-    parameter = rep(
-        c("amplitude_ratio", "peak_time_activ", "peak_time_inhib"),
-        times = nstudies
-        ),
-    true_pars = rep(0, times = nstudies),
-    estimated_pars = rep(0, times = nstudies),
-    final_error = rep(0, times = npars * nstudies)
-    )
+par_recov_results <- crossing(
+    study = rep(1:nstudies, each = length(parameters) ),
+    nobs, parameters
+    ) %>%
+    # adding a simulation id
+    group_by(study, nobs) %>%
+    mutate(study_id = cur_group_id() ) %>%
+    ungroup() %>%
+    # initialising empty vectors for parameter values
+    mutate(
+        true_pars = 0,
+        estimated_pars = 0,
+        final_error = 0
+        )
+
+# recording and printing when simulations started
+start <- Sys.time()
+print(paste0("Simulation started at ", start) )
 
 # running the simulations
-for (i in 1:nstudies) {
+for (i in 1:max(par_recov_results$study_id) ) {
     
-    # true parameter values
+    # printing progress
+    cat("Study", i, "started.\n\n")
+    
+    # generating true parameter values
+    # true_pars <- c(
+    #     rnorm(n = 1, mean = 1.5, sd = 0.1),
+    #     rnorm(n = 1, mean = 0.5, sd = 0.1),
+    #     rnorm(n = 1, mean = 0.5, sd = 0.1)
+    #     )
+    
+    # generating true parameter values
     true_pars <- c(
-        rnorm(n = 1, mean = 1.5, sd = 0.1),
-        rnorm(n = 1, mean = 0.5, sd = 0.1),
-        rnorm(n = 1, mean = 0.5, sd = 0.1)
+        runif(n = 1, min = 1.25, max = 1.75),
+        runif(n = 1, min = 0.25, max = 0.75),
+        runif(n = 1, min = 0.25, max = 0.75)
         )
     
     # simulating some data
     temp_df <- model(
-        nsims = 100, nsamples = 2000,
+        # nsims = 100,
+        nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5,
         amplitude_activ = 1.5,
         peak_time_activ = true_pars[2],
@@ -264,66 +288,108 @@ for (i in 1:nstudies) {
         dplyr::select(-sim)
     
     # fitting the model
+    # temp_fitting_results <- model_fitting(
+    #     par = c(1, 1, 1), data = temp_df,
+    #     method = "DEoptim", maxit = 1000
+    #     )
+    
+    # fitting the model
     temp_fitting_results <- model_fitting(
         par = c(1, 1, 1), data = temp_df,
-        method = "DEoptim", maxit = 200
+        error_function = "sse",
+        method = "DEoptim", maxit = 500
         )
     
-    # storing the true parameter values
-    par_recov_results$true_pars[par_recov_results$study == i] <- true_pars
+    # polishing the estimated parameters with a second simplex run?
+    # temp_fitting_results2 <- model_fitting(
+    #     par = as.numeric(temp_fitting_results$optim$bestmem),
+    #     data = df, nsims = 1e3, 
+    #     error_function = "sse",
+    #     method = "L-BFGS-B", maxit = 50
+    #     )
     
-    # storing the best parameter estimates
-    par_recov_results$estimated_pars[par_recov_results$study == i] <-
+    # storing true parameter values
+    par_recov_results$true_pars[par_recov_results$study_id == i] <- true_pars
+    
+    # storing final parameter estimates
+    par_recov_results$estimated_pars[par_recov_results$study_id == i] <-
         as.numeric(temp_fitting_results$optim$bestmem)
     
-    # storing the final error value
-    par_recov_results$final_error[par_recov_results$study == i] <-
+    # storing final error value
+    par_recov_results$final_error[par_recov_results$study_id == i] <-
         temp_fitting_results$optim$bestval
     
     # printing progress
-    cat("Study", i, "done.")
+    cat(
+        "\nStudy", i, "done.\nTrue parameters:", true_pars,
+        "\nEstimated parameters:",
+        as.numeric(temp_fitting_results$optim$bestmem), "\n\n"
+        )
     
 }
 
+# printing when simulation ended
+end <- Sys.time()
+print(paste0("Simulation finished at ", end) )
+
+# printing total duration of simulations
+cat("Duration: ")
+print(end - start)
+
+# saving simulation results
+save(
+    par_recov_results,
+    file = "parameter_recovery/3pars_50_to_500trials_500DEoptim_sse.Rdata"
+    )
+
+# loading it
+# load("parameter_recovery/3pars_100trials_1000DEoptim.Rdata")
+
 # plotting final error values
+# par_recov_results2 <- par_recov_results
+# par_recov_results <- par_recov_results %>% filter(final_error != 0)
 hist(par_recov_results$final_error)
 unique(par_recov_results$final_error)
 
+# equally-sized ggplot2 axes in facet_wrap()
+source(file = "facet_wrap_equal.R")
+
 # plotting the correlation between true and estimated parameter values
-# plot(par_recov_results$true_pars, par_recov_results$estimated_pars)
-# cor.test(par_recov_results$true_pars, par_recov_results$estimated_pars)
 # the quality of the recovery was considered poor if correlation coefficients
 # between original and recovered parameters were below .5, fair if .5<r<.75,
 # good if.75<r<.9, and excellent if r>.9
 par_recov_results %>%
-    # group_by(study) %>%
-    # mutate(parameter = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib") ) %>%
-    # ungroup() %>%
     ggplot(aes(x = true_pars, y = estimated_pars) ) +
-    geom_abline(intercept = 0, slope = 1) +
-    geom_point(size = 3, pch = 21, color = "white", fill = "black") +
-    geom_smooth(method = "lm") +
+    geom_abline(intercept = 0, slope = 1, lty = 2) +
+    geom_point(
+        # aes(fill = as.factor(study) ),
+        size = 3, pch = 21,
+        color = "white",
+        fill = "black",
+        show.legend = TRUE
+        ) +
+    # geom_smooth(method = "lm", color = "black") +
     ggpubr::stat_cor(
         aes(label = ..r.label..),
         geom = "label", fill = "#F6F6FF"
         ) +
-    theme_bw(base_size = 12, base_family = "Open Sans") +
-    facet_wrap(~parameter, scales = "free", ncol = 3) +
+    # coord_fixed(xlim = c(0, 2), ylim = c(0, 2) ) +
+    theme_bw(base_size = 10, base_family = "Montserrat") +
+    # facet_wrap(~parameter,  ncol = 3) +
+    facet_wrap_equal(parameters, scales = "free", ncol = 3) +
+    # facet_grid(nobs ~ parameters) +
     labs(x = "True parameter value", y = "Estimated parameter value")
 
 # saving the plot
 ggsave(
-    filename = "private/figures/parameter_recovery_3pars_100trials_200optim.png",
-    width = 12, height = 8, dpi = 300,
+    filename = "figures/parameter_recovery_3pars_100trials_1000DEoptim.png",
+    width = 16, height = 8, dpi = 300,
     device = "png"
     )
 
 # computing the goodness-of-recovery statistic (cf. White et al., 2019, 10.3758/s13423-017-1271-2)
 par_recov_results %>%
-    group_by(study) %>%
-    mutate(parameter = 1:5) %>%
-    ungroup() %>%
-    group_by(parameter) %>%
+    group_by(parameters) %>%
     summarise(eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ) ) %>%
     ungroup() %>%
     data.frame()

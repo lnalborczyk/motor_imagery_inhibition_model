@@ -3,7 +3,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 28, 2023            #
+# Last updated on March 29, 2023            #
 #############################################
 
 library(hydroPSO) # particle swarm optimisation
@@ -16,12 +16,15 @@ library(pso) # particle swarm optimisation
 loss_function <- function (
         par = c(1, 1, 1), data,
         nsims = NULL, nsamples = 2000,
-        exec_threshold = 1, imag_threshold = 0.5
+        exec_threshold = 1, imag_threshold = 0.5,
+        error_function = c("g2", "rmse", "sse")
         ) {
     
     # how many trials should we simulate? if null, by default nrow(data)
     if (is.null(nsims) ) nsims <- as.numeric(nrow(data) )
-    # if (is.null(nsims) ) nsims <- 1e3
+    
+    # defines imagery threshold relative to execution threshold
+    imag_threshold <- imag_threshold * exec_threshold
     
     # setting an arbitrary value for the amplitude of the activation function
     amplitude_activ <- 1.5
@@ -44,13 +47,14 @@ loss_function <- function (
     # amplitude_activ should be >= amplitude_inhib in executed trials
     # curvature_activ should be lower than curvature inhib 
     # balance peak time can not be smaller than the shortest RT
+    # imagery threshold cannot be higher than execution threshold
     ###############################################################################
     
     # computing the balance peak time
-    # balance_peak_time <- exp(
-    #     (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
-    #         (curvature_inhib^2 - curvature_activ^2) )
-    # 
+    balance_peak_time <- exp(
+        (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
+            (curvature_inhib^2 - curvature_activ^2) )
+
     # if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
     # 
     #     prediction_error <- 1e6
@@ -60,14 +64,18 @@ loss_function <- function (
     # 
     #     prediction_error <- 1e6
     #     return (prediction_error)
-    #     
-    # 
-    # } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
-    # 
-    #     prediction_error <- 1e6
-    #     return (prediction_error)
-    # 
-    # }
+    
+    if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
+
+        prediction_error <- 1e6
+        return (prediction_error)
+
+    } else if (imag_threshold > exec_threshold) {
+        
+        prediction_error <- 1e6
+        return (prediction_error)
+        
+    }
     
     # simulating some data from the data-generating model
     results <- model(
@@ -122,62 +130,94 @@ loss_function <- function (
         
     }
     
-    # computes the proportion of observations within quantiles
-    find_quantiles_props <- function (x, quants) {
+    if (error_function == "g2") {
+    
+        # computes the proportion of observations within quantiles
+        find_quantiles_props <- function (x, quants) {
+            
+            quants2 <- c(0, quants, Inf) %>% as.numeric()
+            quants_props <- as.numeric(table(cut(x, quants2) ) ) / length(x)
+            
+            return (quants_props)
+            
+        }
         
-        quants2 <- c(0, quants, Inf) %>% as.numeric()
-        quants_props <- as.numeric(table(cut(x, quants2) ) ) / length(x)
+        # what quantiles should we look at?
+        quantile_probs <- c(0.1, 0.3, 0.5, 0.7, 0.9)
         
-        return (quants_props)
+        # computes observed RT quantiles
+        observed_rt_quantiles <- quantile(x = data$reaction_time, probs = quantile_probs, na.rm = TRUE)
+        
+        # computes observed MT quantiles
+        observed_mt_quantiles <- quantile(x = data$movement_time, probs = quantile_probs, na.rm = TRUE)
+        
+        # computes observed proportion of data in RT quantiles
+        observed_rt_quantiles_props <- find_quantiles_props(x = data$reaction_time, quants = observed_rt_quantiles)
+        
+        # computes observed proportion of data in MT quantiles
+        observed_mt_quantiles_props <- find_quantiles_props(x = data$movement_time, quants = observed_mt_quantiles)
+        
+        # computes predicted proportion of data in RT quantiles
+        predicted_rt_quantiles_props <- find_quantiles_props(x = predicted_rt, quants = observed_rt_quantiles)
+        
+        # computes predicted proportion of data in MT quantiles
+        predicted_mt_quantiles_props <- find_quantiles_props(x = predicted_mt, quants = observed_mt_quantiles)
+        
+        # applies a small correction when prop = 0 to avoid negative or Inf g-square
+        predicted_rt_quantiles_props <- ifelse(
+            test = predicted_rt_quantiles_props == 0,
+            yes = 0.0001,
+            no = predicted_rt_quantiles_props
+            )
+        
+        # makes sure proportions sum to 1
+        predicted_rt_quantiles_props <- predicted_rt_quantiles_props / sum(predicted_rt_quantiles_props)
+        
+        # applies a small correction when prop = 0 to avoid negative or Inf g-square
+        predicted_mt_quantiles_props <- ifelse(
+            test = predicted_mt_quantiles_props == 0,
+            yes = 0.0001,
+            no = predicted_mt_quantiles_props
+            )
+        
+        # makes sure proportions sum to 1
+        predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
+        
+        # computes the G^2 prediction error (except it is not multiplied by 2)
+        # which is the error for RTs plus the error for MTs
+        # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018)
+        prediction_error <- sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
+            sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
+        
+    } else if (error_function == "rmse") {
+        
+        # or RMSE as in Ulrich et al. (2016)
+        observed_rt_quantiles <- quantile(x = data$reaction_time, probs = seq(0, 1, 0.1), na.rm = TRUE)
+        observed_mt_quantiles <- quantile(x = data$movement_time, probs = seq(0, 1, 0.1), na.rm = TRUE)
+        predicted_rt_quantiles <- quantile(x = predicted_rt, probs = seq(0, 1, 0.1), na.rm = TRUE)
+        predicted_mt_quantiles <- quantile(x = predicted_mt, probs = seq(0, 1, 0.1), na.rm = TRUE)
+        
+        # computing the weighted RMSE
+        prediction_error <- sqrt((sum(predicted_rt_quantiles - observed_rt_quantiles)^2 +
+                sum(predicted_mt_quantiles - observed_mt_quantiles)^2) /
+                    (length(predicted_rt_quantiles) + length(predicted_mt_quantiles) ) )
+    
+    } else if (error_function == "sse") {
+        
+        # or weighted SSE as in Ractliff & Smith (2004)
+        observed_rt_quantiles <- quantile(x = data$reaction_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        observed_mt_quantiles <- quantile(x = data$movement_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        predicted_rt_quantiles <- quantile(x = predicted_rt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        predicted_mt_quantiles <- quantile(x = predicted_mt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        
+        # quantile weights (cf. Ractliff & Smith, 2004)
+        quantile_weights <- c(2, 2, 1, 1, 0.5)
+        
+        # computing the weighted SSE
+        prediction_error <- sum(quantile_weights * (predicted_rt_quantiles - observed_rt_quantiles)^2) +
+            sum(quantile_weights * (predicted_mt_quantiles - observed_mt_quantiles)^2)
         
     }
-    
-    # what quantiles should we look at?
-    quantile_probs <- c(0.1, 0.3, 0.5, 0.7, 0.9)
-    
-    # computes observed RT quantiles
-    observed_rt_quantiles <- quantile(x = data$reaction_time, probs = quantile_probs, na.rm = TRUE)
-    
-    # computes observed MT quantiles
-    observed_mt_quantiles <- quantile(x = data$movement_time, probs = quantile_probs, na.rm = TRUE)
-    
-    # computes observed proportion of data in RT quantiles
-    observed_rt_quantiles_props <- find_quantiles_props(x = data$reaction_time, quants = observed_rt_quantiles)
-    
-    # computes observed proportion of data in MT quantiles
-    observed_mt_quantiles_props <- find_quantiles_props(x = data$movement_time, quants = observed_mt_quantiles)
-    
-    # computes predicted proportion of data in RT quantiles
-    predicted_rt_quantiles_props <- find_quantiles_props(x = predicted_rt, quants = observed_rt_quantiles)
-    
-    # computes predicted proportion of data in MT quantiles
-    predicted_mt_quantiles_props <- find_quantiles_props(x = predicted_mt, quants = observed_mt_quantiles)
-    
-    # applies a small correction when prop = 0 to avoid negative or Inf g-square
-    predicted_rt_quantiles_props <- ifelse(
-        test = predicted_rt_quantiles_props == 0,
-        yes = 0.0001,
-        no = predicted_rt_quantiles_props
-        )
-    
-    # makes sure proportions sum to 1
-    predicted_rt_quantiles_props <- predicted_rt_quantiles_props / sum(predicted_rt_quantiles_props)
-    
-    # applies a small correction when prop = 0 to avoid negative or Inf g-square
-    predicted_mt_quantiles_props <- ifelse(
-        test = predicted_mt_quantiles_props == 0,
-        yes = 0.0001,
-        no = predicted_mt_quantiles_props
-        )
-    
-    # makes sure proportions sum to 1
-    predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
-    
-    # computes the G^2 prediction error (except it is not multiplied by 2)
-    # which is the error for RTs plus the error for MTs
-    # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018)
-    prediction_error <- sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
-        sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
     
     # returns the prediction error
     return (prediction_error)
@@ -187,6 +227,8 @@ loss_function <- function (
 # fitting the model
 model_fitting <- function (
         par, data,
+        nsims = NULL,
+        error_function,
         method = c(
             "SANN", "GenSA", "pso", "DEoptim",
             "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
@@ -221,6 +263,8 @@ model_fitting <- function (
                 fn = loss_function,
                 data = data,
                 par = par,
+                nsims = nsims,
+                error_function = error_function,
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
@@ -247,6 +291,8 @@ model_fitting <- function (
             fit <- DEoptim::DEoptim(
                 fn = loss_function,
                 data = data,
+                nsims = nsims,
+                error_function = error_function,
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
                 control = DEoptim.control(
@@ -254,7 +300,7 @@ model_fitting <- function (
                     # defines the differential evolution strategy (defaults to 2)
                     # strategy = 6,
                     # value to reach (defaults to -Inf)
-                    VTR = 0,
+                    # VTR = 0,
                     # number of population members (by default 10*length(lower) )
                     # NP = 100,
                     # c controls the speed of the crossover adaptation
@@ -273,6 +319,8 @@ model_fitting <- function (
                 par = par,
                 fn = loss_function,
                 data = data,
+                nsims = nsims,
+                error_function = error_function,
                 method = method,
                 lower = rep(0, length(par) ),
                 upper = rep(2, length(par) ),
