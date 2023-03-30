@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 29, 2023             #
+# Last updated on March 30, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -90,7 +90,8 @@ df %>%
 # (error around 0.1 for 200 iterations and 0.01 for 1e3 iterations)
 # g2 and sse seem to work great (but not rmse)
 fitting_results <- model_fitting(
-    par = c(1, 1, 1), data = df,
+    par = c(1, 1, 1),
+    data = df, nsims = 1e3,
     error_function = "sse",
     method = "DEoptim", maxit = 200
     )
@@ -244,13 +245,6 @@ for (i in 1:max(par_recov_results$study_id) ) {
     cat("Study", i, "started.\n\n")
     
     # generating true parameter values
-    # true_pars <- c(
-    #     rnorm(n = 1, mean = 1.5, sd = 0.1),
-    #     rnorm(n = 1, mean = 0.5, sd = 0.1),
-    #     rnorm(n = 1, mean = 0.5, sd = 0.1)
-    #     )
-    
-    # generating true parameter values
     true_pars <- c(
         runif(n = 1, min = 1.25, max = 1.75),
         runif(n = 1, min = 0.25, max = 0.75),
@@ -288,25 +282,11 @@ for (i in 1:max(par_recov_results$study_id) ) {
         dplyr::select(-sim)
     
     # fitting the model
-    # temp_fitting_results <- model_fitting(
-    #     par = c(1, 1, 1), data = temp_df,
-    #     method = "DEoptim", maxit = 1000
-    #     )
-    
-    # fitting the model
     temp_fitting_results <- model_fitting(
         par = c(1, 1, 1), data = temp_df,
         error_function = "sse",
         method = "DEoptim", maxit = 500
         )
-    
-    # polishing the estimated parameters with a second simplex run?
-    # temp_fitting_results2 <- model_fitting(
-    #     par = as.numeric(temp_fitting_results$optim$bestmem),
-    #     data = df, nsims = 1e3, 
-    #     error_function = "sse",
-    #     method = "L-BFGS-B", maxit = 50
-    #     )
     
     # storing true parameter values
     par_recov_results$true_pars[par_recov_results$study_id == i] <- true_pars
@@ -364,8 +344,9 @@ par_recov_results %>%
     geom_point(
         # aes(fill = as.factor(study) ),
         size = 3, pch = 21,
+        alpha = 0.8,
         color = "white",
-        fill = "black",
+        fill = "steelblue",
         show.legend = TRUE
         ) +
     # geom_smooth(method = "lm", color = "black") +
@@ -374,22 +355,28 @@ par_recov_results %>%
         geom = "label", fill = "#F6F6FF"
         ) +
     # coord_fixed(xlim = c(0, 2), ylim = c(0, 2) ) +
-    theme_bw(base_size = 10, base_family = "Montserrat") +
+    # coord_fixed() +
+    theme_bw(base_size = 16, base_family = "Montserrat") +
     # facet_wrap(~parameter,  ncol = 3) +
-    facet_wrap_equal(parameters, scales = "free", ncol = 3) +
+    # facet_wrap_equal(nobs~parameters, scales = "free", ncol = 3) +
+    facet_grid_equal(nobs~parameters) +
     # facet_grid(nobs ~ parameters) +
     labs(x = "True parameter value", y = "Estimated parameter value")
 
 # saving the plot
 ggsave(
-    filename = "figures/parameter_recovery_3pars_100trials_1000DEoptim.png",
-    width = 16, height = 8, dpi = 300,
+    # filename = "figures/parameter_recovery_3pars_100trials_1000DEoptim.png",
+    filename = "figures/parameter_recovery_3pars_50_to_500trials_500DEoptim_sse.png",
+    width = 12, height = 8, dpi = 300,
     device = "png"
     )
 
 # computing the goodness-of-recovery statistic (cf. White et al., 2019, 10.3758/s13423-017-1271-2)
 par_recov_results %>%
-    group_by(parameters) %>%
-    summarise(eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ) ) %>%
+    group_by(parameters, nobs) %>%
+    summarise(
+        eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ) %>%
+            round(., 3)
+        ) %>%
     ungroup() %>%
     data.frame()

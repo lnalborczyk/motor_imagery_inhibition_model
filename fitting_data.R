@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 29, 2023             #
+# Last updated on March 30, 2023             #
 ##############################################
 
 library(tidyverse)
@@ -104,13 +104,15 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # fitting the model using differential evolution
-fitting_results_IE <- model_fitting(
+temp_fitting_results_IE <- model_fitting(
     par = c(1, 1, 1), data = df_IE,
+    error_function = "sse",
     method = "DEoptim", maxit = 500
     )
 
 fitting_results_EE <- model_fitting(
     par = c(1, 1, 1), data = df_EE,
+    error_function = "sse",
     method = "DEoptim", maxit = 500
     )
 
