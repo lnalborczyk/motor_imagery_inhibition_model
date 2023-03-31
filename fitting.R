@@ -3,7 +3,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 29, 2023            #
+# Last updated on March 31, 2023            #
 #############################################
 
 library(hydroPSO) # particle swarm optimisation
@@ -305,7 +305,8 @@ model_fitting <- function (
                 data = data,
                 nsims = nsims,
                 error_function = error_function,
-                lower = rep(0, length(par) ),
+                # lower = rep(0, length(par) ),
+                lower = c(0, -2, -2),
                 upper = rep(2, length(par) ),
                 control = DEoptim.control(
                     itermax = maxit, trace = TRUE,
