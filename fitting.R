@@ -17,7 +17,7 @@ loss_function <- function (
         par = c(1, 1, 1), data,
         nsims = NULL, nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5,
-        error_function = c("g2", "rmse", "sse")
+        error_function = c("g2", "rmse", "sse", "wsse")
         ) {
     
     # how many trials should we simulate? if null, by default nrow(data)
@@ -203,6 +203,18 @@ loss_function <- function (
                     (length(predicted_rt_quantiles) + length(predicted_mt_quantiles) ) )
     
     } else if (error_function == "sse") {
+        
+        # or raw SSE as in Ractliff & Smith (2004)
+        observed_rt_quantiles <- quantile(x = data$reaction_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        observed_mt_quantiles <- quantile(x = data$movement_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        predicted_rt_quantiles <- quantile(x = predicted_rt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        predicted_mt_quantiles <- quantile(x = predicted_mt, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
+        
+        # computing the weighted SSE
+        prediction_error <- sum((predicted_rt_quantiles - observed_rt_quantiles)^2) +
+            sum((predicted_mt_quantiles - observed_mt_quantiles)^2)
+        
+    } else if (error_function == "wsse") {
         
         # or weighted SSE as in Ractliff & Smith (2004)
         observed_rt_quantiles <- quantile(x = data$reaction_time, probs = c(0.1, 0.3, 0.5, 0.7, 0.9), na.rm = TRUE)
