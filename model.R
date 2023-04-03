@@ -87,7 +87,7 @@ model <- function (
         
     }
     
-    # taking log of peak_time so that it scales more naturally in seconds
+    # taking log of peak_time so that predictions scale more naturally in seconds
     # peak_time_activ <- log(ifelse(peak_time_activ == 0, peak_time_activ + 1e-6, peak_time_activ) )
     # peak_time_inhib <- log(ifelse(peak_time_inhib == 0, peak_time_inhib + 1e-6, peak_time_inhib) )
     

@@ -277,7 +277,8 @@ model_fitting <- function (
                 par = par,
                 nsims = nsims,
                 error_function = error_function,
-                lower = rep(0, length(par) ),
+                # lower = rep(0, length(par) ),
+                lower = c(0, -1, -1),
                 upper = rep(2, length(par) ),
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
@@ -306,7 +307,7 @@ model_fitting <- function (
                 nsims = nsims,
                 error_function = error_function,
                 # lower = rep(0, length(par) ),
-                lower = c(0, -2, -2),
+                lower = c(0, -1, -1),
                 upper = rep(2, length(par) ),
                 control = DEoptim.control(
                     itermax = maxit, trace = TRUE,

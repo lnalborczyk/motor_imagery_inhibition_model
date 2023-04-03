@@ -39,7 +39,7 @@ ui <- fluidPage(
                 inputId = "activation_beta",
                 label = "Peak time of the activation curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.5, step = 0.01
+                min = -2, max = 2, value = 0.5, step = 0.01
                 ),
             sliderInput(
                 inputId = "activation_lambda",
@@ -57,7 +57,7 @@ ui <- fluidPage(
                 inputId = "inhibition_beta",
                 label = "Peak time of the inhibition curve",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 0.5, step = 0.01
+                min = -2, max = 2, value = 0.5, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_lambda",

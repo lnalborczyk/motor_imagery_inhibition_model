@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 30, 2023             #
+# Last updated on April 02, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -216,7 +216,8 @@ nstudies <- 20
 parameters <- c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
 
 # should also vary N (as in White et al., 2019)
-nobs <- c(50, 100, 200, 500)
+# nobs <- c(50, 100, 200, 500)
+nobs <- c(100, 500)
 
 # initialise results dataframe
 par_recov_results <- crossing(
@@ -283,8 +284,10 @@ for (i in 1:max(par_recov_results$study_id) ) {
     
     # fitting the model
     temp_fitting_results <- model_fitting(
-        par = c(1, 1, 1), data = temp_df,
-        error_function = "sse",
+        par = c(1, 1, 1),
+        data = temp_df,
+        nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        error_function = "g2",
         method = "DEoptim", maxit = 500
         )
     
@@ -319,7 +322,7 @@ print(end - start)
 # saving simulation results
 save(
     par_recov_results,
-    file = "parameter_recovery/3pars_50_to_500trials_500DEoptim_sse.Rdata"
+    file = "parameter_recovery/3pars_100_or_500_obs_and_sim_trials_500_DEoptim_g2.Rdata"
     )
 
 # loading it
@@ -366,7 +369,7 @@ par_recov_results %>%
 # saving the plot
 ggsave(
     # filename = "figures/parameter_recovery_3pars_100trials_1000DEoptim.png",
-    filename = "figures/parameter_recovery_3pars_50_to_500trials_500DEoptim_sse.png",
+    filename = "figures/parameter_recovery_3pars_100obs_100_or_500_sim_trials_500DEoptim_sse.png",
     width = 12, height = 8, dpi = 300,
     device = "png"
     )

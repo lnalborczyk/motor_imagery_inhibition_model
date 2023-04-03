@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on March 31, 2023             #
+# Last updated on April 03, 2023             #
 ##############################################
 
 library(patchwork)
@@ -184,28 +184,28 @@ source(file = "fitting.R")
 fitting_results_IE <- model_fitting(
     par = c(1, 1, 1),
     data = df_IE, nsims = 500,
-    error_function = "wsse",
+    error_function = "g2",
     method = "DEoptim", maxit = 500
     )
 
 fitting_results_EE <- model_fitting(
     par = c(1, 1, 1),
     data = df_EE, nsims = 500,
-    error_function = "wsse",
+    error_function = "g2",
     method = "DEoptim", maxit = 500
     )
 
 fitting_results_II <- model_fitting(
     par = c(1, 1, 1),
     data = df_II, nsims = 500,
-    error_function = "wsse",
+    error_function = "g2",
     method = "DEoptim", maxit = 500
     )
 
 fitting_results_EI <- model_fitting(
     par = c(1, 1, 1),
     data = df_EI, nsims = 500,
-    error_function = "wsse",
+    error_function = "g2",
     method = "DEoptim", maxit = 500
     )
 
@@ -215,48 +215,90 @@ summary(fitting_results_EE)
 summary(fitting_results_II)
 summary(fitting_results_EI)
 
+# using wsse
 # best parameter estimates in IE sequences are
-# 1.3414 0.71388 0.60102 (bestvalit around 0.00396, using sse)
+# 1.34781 0.70156 0.57385 (bestvalit around 0.00398)
 # best parameter estimates in EE sequences are
-# 1.35698 0.68533 0.55379 (bestvalit around 0.0064, using sse)
+# 1.36582 0.64592 0.49884 (bestvalit around 0.00635)
+# best parameter estimates in II sequences are
+# 0.31171 0.40644 -0.20384 (bestvalit around 0.02315)
+# best parameter estimates in EI sequences are
+# 0.41025 0.50511 0.00185 (bestvalit around 0.01594)
 
+# using g2
 # best parameter estimates in IE sequences are
-# 0.71413 1.22771 1.75257 (bestvalit around 0.11502, using g2)
+# 0.78142 1.2121 1.70929 (bestvalit around 0.10678)
 # best parameter estimates in EE sequences are
-# 0.71929 1.21016 1.73923 (bestvalit around 0.07155, using g2)
-
-# retrieving estimated parameters
-# estimated_pars_IE <- fitting_results_IE$optim$bestmem %>% as.numeric()
-# estimated_pars_EE <- fitting_results_EE$optim$bestmem %>% as.numeric()
+# 0.76605 1.1994 1.71286 (bestvalit around 0.06786)
+# best parameter estimates in IE sequences are
+# 0.08034 0.11802 -0.82256 (bestvalit around 0.0936)
+# best parameter estimates in EE sequences are
+# 0.12722 0.20348 -0.63707 (bestvalit around 0.12335)
 
 # fitting the model using particle swarm optimisation
-# fitting_results_IE_pso <- model_fitting(
-#     par = c(1, 1, 1), data = df_IE,
-#     method = "pso", maxit = 2000
-#     )
-# 
-# fitting_results_EE_pso <- model_fitting(
-#     par = c(1, 1, 1), data = df_EE,
-#     method = "pso", maxit = 2000
-#     )
+fitting_results_IE_pso <- model_fitting(
+    par = c(1, 1, 1),
+    data = df_IE,
+    # nsims = 500,
+    error_function = "g2",
+    method = "pso", maxit = 2000
+    )
 
-# best parameter estimates in IE sequences are
-# 0.5501751 1.2858752 1.8942179 (bestvalit around 0.2502)
-# best parameter estimates in EE sequences are
-# 0.47419 1.32958 1.98809  (bestvalit around 0.21093)
+fitting_results_EE_pso <- model_fitting(
+    par = c(1, 1, 1),
+    data = df_EE,
+    # nsims = 500,
+    error_function = "g2",
+    method = "pso", maxit = 2000
+    )
 
+fitting_results_II_pso <- model_fitting(
+    par = c(1, 1, 1),
+    data = df_II,
+    # nsims = 500,
+    error_function = "g2",
+    method = "pso", maxit = 2000
+    )
+
+fitting_results_EI_pso <- model_fitting(
+    par = c(1, 1, 1),
+    data = df_EI,
+    # nsims = 500,
+    error_function = "g2",
+    method = "pso", maxit = 2000
+    )
+
+# using wsse
 # best parameter estimates in IE sequences are
-# 0.5477616132 0.2876862846 0.9583299498 0.0005916149 1.8014553519 (bestvalit around 0.05069868)
+# 1.3416345 0.6961862 0.5544498 (bestvalit around 0.002970687)
 # best parameter estimates in EE sequences are
-# 1.00445849 0.07692108 0.04314579 1.55153960 1.90340393 (bestvalit around 0.1070052)
+# 1.3310512 0.6231945 0.4340981 (bestvalit around 0.005490737)
+# best parameter estimates in II sequences are
+# 0.42559993 0.52572246 0.02623149 (bestvalit around 0.02618343)
+# best parameter estimates in EI sequences are
+# 0.3310483 0.4530563 -0.1149336 (bestvalit around 0.01360734)
+
+# using g2
+# best parameter estimates in IE sequences are
+# 0.71413 1.22771 1.75257 (bestvalit around 0.11502)
+# best parameter estimates in EE sequences are
+# 0.71929 1.21016 1.73923 (bestvalit around 0.07155)
+# best parameter estimates in IE sequences are
+# 0.71413 1.22771 1.75257 (bestvalit around 0.11502)
+# best parameter estimates in EE sequences are
+# 0.71929 1.21016 1.73923 (bestvalit around 0.07155)
+
+# # retrieving the estimated parameters
+# estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
+# estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
+# estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
+# estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
 
 # retrieving the estimated parameters
-# estimated_pars_IE <- as.numeric(fitting_results_IE$par)
-# estimated_pars_EE <- as.numeric(fitting_results_EE$par)
-estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
-estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
-estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
-estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
+estimated_pars_IE <- as.numeric(fitting_results_IE_pso$par)
+estimated_pars_EE <- as.numeric(fitting_results_EE_pso$par)
+estimated_pars_II <- as.numeric(fitting_results_II_pso$par)
+estimated_pars_EI <- as.numeric(fitting_results_EI_pso$par)
 
 ################################################
 # predictive checks
@@ -382,6 +424,7 @@ p1 <- sim_IE %>%
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
+    coord_cartesian(xlim = c(0, 2) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
@@ -402,7 +445,7 @@ p2 <- sim_EE %>%
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # coord_cartesian(xlim = c(0.25, 1.25) ) +
+    coord_cartesian(xlim = c(0, 2) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
@@ -412,7 +455,7 @@ p2 <- sim_EE %>%
         )
 
 # plotting the distributions of RTs and MTs
-p2 <- sim_II %>%
+p3 <- sim_II %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(
@@ -423,7 +466,7 @@ p2 <- sim_II %>%
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # coord_cartesian(xlim = c(0.25, 1.25) ) +
+    coord_cartesian(xlim = c(0, 2) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
@@ -444,7 +487,7 @@ p4 <- sim_EI %>%
         ) +
     geom_density(size = 1, fill = NA, show.legend = FALSE) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
-    # coord_cartesian(xlim = c(0.25, 1.25) ) +
+    coord_cartesian(xlim = c(0, 2) ) +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     labs(
@@ -454,11 +497,11 @@ p4 <- sim_EI %>%
         )
 
 # combining all plots
-(p1 + p2) / (p3 + p4)
+(p1 + p3) / (p2 + p4)
 
 # saving the plot
 ggsave(
-    filename = "figures/predictive_checks_bart_et_al_2020.png",
+    filename = "figures/predictive_checks_bart_et_al_2020_pso_g2_2000_iter.png",
     width = 12, height = 8, dpi = 300,
     device = "png"
     )
