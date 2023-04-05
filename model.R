@@ -5,9 +5,10 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on March 31, 2023                              #
+# Last updated on April 05, 2023                              #
 ###############################################################
 
+library(geomtextpath)
 library(tidyverse)
 library(patchwork)
 library(MetBrewer)
@@ -25,13 +26,13 @@ library(MetBrewer)
 # amplitude_inhib: amplitude of the inhibition function
 # peak_time_inhib: peak time of the inhibition function
 # curvature_inhib: curvature of the inhibition function
-#################################################################
+#####################################################################
 
 model <- function (
-        nsims = 100, nsamples = 2000,
+        nsims = 100, nsamples = 3000,
         exec_threshold = 1, imag_threshold = 0.5,
-        amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4,
-        amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
+        amplitude_activ = 1.5, peak_time_activ = 0, curvature_activ = 0.2,
+        amplitude_inhib = 1.5, peak_time_inhib = 0, curvature_inhib = 0.4
         ) {
     
     # defining the activation/inhibition rescaled lognormal function
@@ -39,7 +40,7 @@ model <- function (
     # https://www.sciencedirect.com/science/article/abs/pii/S0010028515000195?via%3Dihub
     # peak time (in seconds) is given by exp(peak_time)
     # activation_inhibition_function <- function (
-    #     time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.6
+    #     time = 0, amplitude = 1.5, peak_time = 0, curvature = 0.4
     #     ) {
     # 
     #     # adding some variability in the other parameters
@@ -47,8 +48,9 @@ model <- function (
     #     amplitude_sim <- rnorm(n = 1, mean = amplitude, sd = 0.05)
     #     peak_time_sim <- rnorm(n = 1, mean = peak_time, sd = 0.05)
     #     curvature_sim <- rnorm(n = 1, mean = curvature, sd = 0.01)
-    #     
-    #     activ_inhib <- amplitude_sim * exp(-(log(time) - peak_time_sim)^2 / (2 * curvature_sim^2) )
+    # 
+    #     activ_inhib <- amplitude_sim *
+    #         exp(-(log(time) - peak_time_sim)^2 / (2 * curvature_sim^2) )
     # 
     #     return (activ_inhib)
     # 
@@ -57,21 +59,22 @@ model <- function (
     # or directly computing the balance (ratio) between activation and
     # inhibition in the current trial (activation/inhibition)
     # basically a ratio of two rescaled lognormal distribution
-    # the mode of the function is given by exp((mu_f * sigma_g^2 - mu_g * sigma_f^2) / (sigma_g^2 - sigma_f^2) )
+    # the mode of the function is given by:
+    # exp((mu_f * sigma_g^2 - mu_g * sigma_f^2) / (sigma_g^2 - sigma_f^2) )
     balance_funtion <- function (
         time = 0,
-        amplitude_activ = 1.5, peak_time_activ = 0.5, curvature_activ = 0.4, 
-        amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
+        amplitude_activ = 1.5, peak_time_activ = 0, curvature_activ = 0.2,
+        amplitude_inhib = 1.5, peak_time_inhib = 0, curvature_inhib = 0.4
         ) {
         
         # adding some variability in the other parameters
         # variability is currently fixed but could also be estimated
-        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.05)
-        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.05)
+        amplitude_activ_sim <- rnorm(n = 1, mean = amplitude_activ, sd = 0.01)
+        peak_time_activ_sim <- rnorm(n = 1, mean = peak_time_activ, sd = 0.01)
         curvature_activ_sim <- rnorm(n = 1, mean = curvature_activ, sd = 0.01)
         
-        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.05)
-        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.05)
+        amplitude_inhib_sim <- rnorm(n = 1, mean = amplitude_inhib, sd = 0.01)
+        peak_time_inhib_sim <- rnorm(n = 1, mean = peak_time_inhib, sd = 0.01)
         curvature_inhib_sim <- rnorm(n = 1, mean = curvature_inhib, sd = 0.01)
         
         # computing the balance (ratio)
@@ -80,19 +83,12 @@ model <- function (
                     (log(time) - peak_time_inhib_sim)^2 / (2 * curvature_inhib_sim^2) )
         
         # when time = 0, balance should be 0 as well (starting point)
-        balance_output <- ifelse(test = time == 0, yes = 0, no = balance_output)
+        # balance_output <- ifelse(test = time == 0, yes = 0, no = balance_output)
     
         # returning it
         return (balance_output)
         
     }
-    
-    # taking log of peak_time so that predictions scale more naturally in seconds
-    # peak_time_activ <- log(ifelse(peak_time_activ == 0, peak_time_activ + 1e-6, peak_time_activ) )
-    # peak_time_inhib <- log(ifelse(peak_time_inhib == 0, peak_time_inhib + 1e-6, peak_time_inhib) )
-    
-    # defining the time scaling factor so that predictions scale more naturally in seconds
-    timescale <- 5
     
     # computing the activation/inhibition balance and
     # implied distributions of RTs and MTs per simulation
@@ -106,7 +102,7 @@ model <- function (
         group_by(sim) %>%
         # mutate(
         #     activation = activation_inhibition_function(
-        #         time = seq.int(from = 0, to = timescale, length.out = nsamples),
+        #         time = time,
         #         amplitude = amplitude_activ,
         #         peak_time = peak_time_activ,
         #         curvature = curvature_activ
@@ -114,7 +110,7 @@ model <- function (
         #     ) %>%
         # mutate(
         #     inhibition = activation_inhibition_function(
-        #         time = seq.int(from = 0, to = timescale, length.out = nsamples),
+        #         time = time,
         #         amplitude = amplitude_inhib,
         #         peak_time = peak_time_inhib,
         #         curvature = curvature_inhib
@@ -123,7 +119,7 @@ model <- function (
         # mutate(balance = activation / inhibition) %>%
         mutate(
             balance = balance_funtion(
-                time = seq.int(from = 0, to = timescale, length.out = nsamples),
+                time = time,
                 amplitude_activ = amplitude_activ,
                 peak_time_activ = peak_time_activ,
                 curvature_activ = curvature_activ,
@@ -141,14 +137,7 @@ model <- function (
         mutate(offset_imag = which(balance > imag_threshold) %>% last() ) %>%
         mutate(mt_imag = offset_imag - onset_imag) %>%
         # convert from ms to seconds
-        mutate(
-            onset_exec = onset_exec / 1e3,
-            offset_exec = offset_exec / 1e3,
-            onset_imag = onset_imag / 1e3,
-            offset_imag = offset_imag / 1e3,
-            mt_exec = mt_exec / 1e3,
-            mt_imag = mt_imag / 1e3
-            ) %>%
+        mutate(across(onset_exec:mt_imag, ~ . / 1e3) ) %>%
         ungroup()
     
     # returning the results
@@ -162,17 +151,14 @@ model <- function (
 ###################################################################
 
 # simulation_results <- model(
-#     nsims = 1e3, nsamples = 2000,
+#     nsims = 1e2, nsamples = 3000,
 #     exec_threshold = 1, imag_threshold = 0.5,
-#     amplitude_activ = 1.25, peak_time_activ = 0.5, curvature_activ = 0.4,
-#     amplitude_inhib = 1.5, peak_time_inhib = 0.5, curvature_inhib = 0.6
+#     amplitude_activ = 1.5, peak_time_activ = -0.5, curvature_activ = 0.3,
+#     amplitude_inhib = 1.75, peak_time_inhib = -0.5, curvature_inhib = 0.5
 #     )
 # 
 # p1 <- simulation_results %>%
 #     pivot_longer(cols = activation:balance) %>%
-#     # group_by(time, name) %>%
-#     # summarise(value = median(value) ) %>%
-#     # ungroup() %>%
 #     ggplot(
 #         aes(
 #             x = time, y = value,
@@ -180,12 +166,21 @@ model <- function (
 #             colour = name
 #             )
 #         ) +
-#     geom_hline(yintercept = 1, linetype = 2) +
-#     geom_hline(yintercept = 0.5, linetype = 2) +
+#     # plotting the motor execution and motor imagery thresholds
+#     geom_texthline(
+#         yintercept = 1, linetype = 2,
+#         hjust = 0.9,
+#         label = "Motor execution threshold"
+#         ) +
+#     geom_texthline(
+#         yintercept = 0.5, linetype = 2,
+#         hjust = 0.9,
+#         label = "Motor imagery threshold"
+#         ) +
 #     # plotting some individual simulations
 #     geom_line(
 #         data = . %>% filter(sim %in% unique(sim)[1:100]),
-#         size = 0.5, alpha = 0.1, show.legend = FALSE
+#         linewidth = 0.5, alpha = 0.1, show.legend = FALSE
 #         ) +
 #     # plotting average
 #     stat_summary(
@@ -194,13 +189,11 @@ model <- function (
 #         linewidth = 1, alpha = 1,
 #         show.legend = TRUE
 #         ) +
-#     # geom_line(linewidth = 1, show.legend = TRUE) +
 #     theme_bw(base_size = 12, base_family = "Open Sans") +
 #     scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
 #     scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
 #     labs(
 #         title = "Simulating activation/inhibition patterns",
-#         # subtitle = "Balance function is defined as activation_current / inhibition_current",
 #         x = "Time within a trial (in seconds)",
 #         y = "Activation/inhibition (a.u.)",
 #         colour = "",
@@ -215,8 +208,6 @@ model <- function (
 #         imag_mt_median = median(mt_imag),
 #         ) %>%
 #     pivot_longer(cols = c(onset_imag, mt_imag) ) %>%
-#     # select(sim, name, value, imag_rt_median, imag_mt_median) %>%
-#     # distinct() %>%
 #     ggplot(
 #         aes(
 #             x = value, group = name,
@@ -247,7 +238,7 @@ model <- function (
 #     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 5)[4:5]) +
 #     scale_colour_manual(values = met.brewer(name = "Johnson", n = 5)[4:5]) +
 #     labs(
-#         title = "Simulating the implied distribution of RTs and MTs",
+#         title = "Simulating the implied distributions of RTs and MTs",
 #         x = "Reaction/Movement time (in seconds)",
 #         y = "Probability density"
 #         )

@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 02, 2023             #
+# Last updated on April 04, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -13,7 +13,8 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # true parameter values in EE sequences
-true_pars <- c(1.5, 0.5, 0.5)
+# true_pars <- c(1.5, 0.5, 0.5)
+true_pars <- c(1.5, 0, 0.2, 0, 0.4)
 
 # simulating data
 df <- model(
@@ -21,10 +22,10 @@ df <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = true_pars[2],
-    curvature_activ = 0.4,
+    curvature_activ = true_pars[3], # 0.4,
     amplitude_inhib = 1.5 / true_pars[1],
-    peak_time_inhib = true_pars[3],
-    curvature_inhib = 0.6
+    peak_time_inhib = true_pars[4],
+    curvature_inhib = true_pars[5] # 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -89,19 +90,26 @@ df %>%
 # seems to work best in short periods of time
 # (error around 0.1 for 200 iterations and 0.01 for 1e3 iterations)
 # g2 and sse seem to work great (but not rmse)
+# increasing nsims to 1e3 and maxit to 500 seems to work well (error < 0.01)
+# with g2 even with 5 free parameters...
 fitting_results <- model_fitting(
-    par = c(1, 1, 1),
-    data = df, nsims = 1e3,
-    error_function = "sse",
-    method = "DEoptim", maxit = 200
+    par = c(1, 1, 1, 1, 1),
+    data = df,
+    nsims = 1e3,
+    error_function = "g2",
+    method = "DEoptim",
+    maxit = 500
     )
 
-# maybe try polishing the estimated parameters with a second simplex run?
+# polishing the estimated parameters with a second simplex run
 fitting_results2 <- model_fitting(
     par = as.numeric(fitting_results$optim$bestmem),
-    data = df, nsims = 1e3, 
-    error_function = "sse",
-    method = "L-BFGS-B", maxit = 50
+    data = df,
+    nsims = 1e4,
+    error_function = "g2",
+    # method = "L-BFGS-B",
+    method = "optimParallel", # parallelised L-BFGS-B
+    maxit = 20
     )
 
 # plotting the optimisation results (for DEoptim only)
@@ -120,14 +128,22 @@ estimated_pars <- as.numeric(fitting_results$optim$bestmem)
 
 # plotting true parameter versus estimated parameter values
 data.frame(
-    parameter = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib"),
+    # parameter = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib"),
+    parameter = c(
+        "amplitude_ratio", "peak_time_activ", "curvature_activ",
+        "peak_time_inhib", "curvature_inhib"
+        ),
     true_pars = true_pars,
     estimated_pars = estimated_pars
     ) %>%
     mutate(
         parameter = factor(
             x = parameter,
-            levels = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
+            # levels = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
+            levels = c(
+                "amplitude_ratio", "peak_time_activ", "curvature_activ",
+                "peak_time_inhib", "curvature_inhib"
+                )
             )
         ) %>%
     pivot_longer(cols = true_pars:estimated_pars) %>%
@@ -153,10 +169,10 @@ model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars[2],
-    curvature_activ = 0.4,
+    curvature_activ = estimated_pars[3], # 0.4,
     amplitude_inhib = 1.5 / estimated_pars[1],
-    peak_time_inhib = estimated_pars[3],
-    curvature_inhib = 0.6
+    peak_time_inhib = estimated_pars[4],
+    curvature_inhib = estimated_pars[5] # 0.6
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -194,7 +210,7 @@ model(
 
 # saving the plot
 # ggsave(
-#     filename = "figures/predictive_checks.png",
+#     filename = "figures/predictive_checks_5pars.png",
 #     width = 12, height = 8, dpi = 300,
 #     device = "png"
 #     )
@@ -210,10 +226,14 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # number of simulated "studies" to run
-nstudies <- 20
+nstudies <- 10
 
 # free parameters
-parameters <- c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
+# parameters <- c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
+parameters <- c(
+    "amplitude_ratio", "peak_time_activ", "curvature_activ",
+    "peak_time_inhib", "curvature_inhib"
+    )
 
 # should also vary N (as in White et al., 2019)
 # nobs <- c(50, 100, 200, 500)
@@ -249,21 +269,23 @@ for (i in 1:max(par_recov_results$study_id) ) {
     true_pars <- c(
         runif(n = 1, min = 1.25, max = 1.75),
         runif(n = 1, min = 0.25, max = 0.75),
-        runif(n = 1, min = 0.25, max = 0.75)
+        runif(n = 1, min = 0.1, max = 0.5),
+        runif(n = 1, min = 0.25, max = 0.75),
+        runif(n = 1, min = 0.5, max = 0.9)
         )
     
     # simulating some data
     temp_df <- model(
-        # nsims = 100,
         nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        # nsims = 100,
         nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5,
         amplitude_activ = 1.5,
         peak_time_activ = true_pars[2],
-        curvature_activ = 0.4,
+        curvature_activ = true_pars[3],
         amplitude_inhib = 1.5 / true_pars[1],
-        peak_time_inhib = true_pars[3],
-        curvature_inhib = 0.6
+        peak_time_inhib = true_pars[4],
+        curvature_inhib = true_pars[5]
         ) %>%
         # was the action executed or imagined?
         mutate(
@@ -284,11 +306,13 @@ for (i in 1:max(par_recov_results$study_id) ) {
     
     # fitting the model
     temp_fitting_results <- model_fitting(
-        par = c(1, 1, 1),
+        # nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        par = c(1, 1, 1, 1, 1),
         data = temp_df,
-        nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        nsims = 1e3,
         error_function = "g2",
-        method = "DEoptim", maxit = 500
+        method = "DEoptim",
+        maxit = 1e3
         )
     
     # storing true parameter values
@@ -322,11 +346,11 @@ print(end - start)
 # saving simulation results
 save(
     par_recov_results,
-    file = "parameter_recovery/3pars_100_or_500_obs_and_sim_trials_500_DEoptim_g2.Rdata"
+    file = "parameter_recovery/5pars_100_or_500_obs_1e3_sim_trials_1e3_DEoptim_g2.Rdata"
     )
 
 # loading it
-# load("parameter_recovery/3pars_100trials_1000DEoptim.Rdata")
+# load("parameter_recovery/3pars_100_or_500_obs_and_sim_trials_500_DEoptim_g2.Rdata")
 
 # plotting final error values
 # par_recov_results2 <- par_recov_results

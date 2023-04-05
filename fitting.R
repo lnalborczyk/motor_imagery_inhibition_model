@@ -3,9 +3,10 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on March 31, 2023            #
+# Last updated on April 05, 2023            #
 #############################################
 
+library(optimParallel) # parallelised simplex (L-BFGS-B)
 library(hydroPSO) # particle swarm optimisation
 library(DEoptim) # global optimisation by differential evolution
 library(optimx) # various optimisation methods
@@ -14,8 +15,8 @@ library(pso) # particle swarm optimisation
 
 # simulating some data and computing the prediction error
 loss_function <- function (
-        par = c(1, 1, 1), data,
-        nsims = NULL, nsamples = 2000,
+        par = c(1, 1, 1, 1, 1), data,
+        nsims = NULL, nsamples = 3000,
         exec_threshold = 1, imag_threshold = 0.5,
         error_function = c("g2", "rmse", "sse", "wsse")
         ) {
@@ -34,38 +35,48 @@ loss_function <- function (
     
     # retrieving parameter values for the activation function
     peak_time_activ <- par[[2]]
-    curvature_activ <- 0.4
+    curvature_activ <- par[[3]]
     
     # retrieving parameter values for the inhibition function
-    peak_time_inhib <- par[[3]]
-    curvature_inhib <- 0.6
+    peak_time_inhib <- par[[4]]
+    curvature_inhib <- par[[5]]
     
-    #################################################################################
+    ############################################################################
     # adding some constraints
-    # ------------------------------------------------------------------------------
-    # amplitude_inhib should be >= amplitude_activ in imagined trials
-    # amplitude_activ should be >= amplitude_inhib in executed trials
-    # curvature_activ should be lower than curvature inhib 
+    # ------------------------------------------------------------------------
+    # balance_max should not be above exec_threshold in imagined trials
+    # balance_max should not be above 2 * exec_threshold in executed trials
+    # curvature_activ should be lower than curvature_inhib 
     # balance peak time can not be smaller than the shortest RT
     # imagery threshold cannot be higher than execution threshold
-    ###############################################################################
+    #########################################################################
     
-    # computing the balance peak time
+    # computing the maximum value of the balance function
+    balance_max <- (amplitude_activ / amplitude_inhib) *
+        exp(-((peak_time_activ - peak_time_inhib)^2 / (2 * (curvature_activ^2 + curvature_inhib^2) ) ) )
+    
+    # computing the peak time of the balance function
+    # balance_peak_time <- exp(((mu_f / sigma_f^2) + (mu_g / sigma_g^2)) / ((1 / sigma_f^2) + (1 / sigma_g^2) ) )
     balance_peak_time <- exp(
         (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
             (curvature_inhib^2 - curvature_activ^2) )
 
-    # if (unique(data$action_mode) == "imagined" & amplitude_activ > amplitude_inhib) {
-    # 
-    #     prediction_error <- 1e6
-    #     return (prediction_error)
-    # 
-    # } else if (unique(data$action_mode) == "executed" & amplitude_inhib > amplitude_activ) {
-    # 
-    #     prediction_error <- 1e6
-    #     return (prediction_error)
+    if (unique(data$action_mode) == "imagined" & balance_max > exec_threshold) {
+
+        prediction_error <- 1e6
+        return (prediction_error)
+
+    } else if (unique(data$action_mode) == "executed" & balance_max > 2 * exec_threshold) {
+
+        prediction_error <- 1e6
+        return (prediction_error)
     
-    if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
+    } else if (curvature_activ >= curvature_inhib) {
+        
+        prediction_error <- 1e6
+        return (prediction_error)
+    
+    } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
 
         prediction_error <- 1e6
         return (prediction_error)
@@ -243,7 +254,8 @@ model_fitting <- function (
         error_function,
         method = c(
             "SANN", "GenSA", "pso", "DEoptim",
-            "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb", "all_methods"
+            "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb",
+            "all_methods", "optimParallel"
             ),
         maxit = 1e2
         ) {
@@ -254,6 +266,8 @@ model_fitting <- function (
             par = par,
             fn = loss_function,
             data = data,
+            nsims = nsims,
+            error_function = error_function,
             method = method,
             control = list(maxit = maxit, trace = 2)
             )
@@ -263,9 +277,13 @@ model_fitting <- function (
             fit <- GenSA::GenSA(
                 fn = loss_function,
                 data = data,
+                nsims = nsims,
+                error_function = error_function,
                 par = par,
-                lower = rep(0, length(par) ),
-                upper = rep(2, length(par) ),
+                # lower = rep(0, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = list(maxit = maxit, verbose = TRUE)
                 )
         
@@ -278,8 +296,9 @@ model_fitting <- function (
                 nsims = nsims,
                 error_function = error_function,
                 # lower = rep(0, length(par) ),
-                lower = c(0, -1, -1),
-                upper = rep(2, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
             
@@ -288,9 +307,13 @@ model_fitting <- function (
             fit <- hydroPSO::hydroPSO(
                 fn = loss_function,
                 data = data,
+                nsims = nsims,
+                error_function = error_function,
                 par = par,
-                lower = rep(0, length(par) ),
-                upper = rep(2, length(par) ),
+                # lower = rep(0, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = list(
                     maxit = maxit,
                     verbose = TRUE,
@@ -307,8 +330,9 @@ model_fitting <- function (
                 nsims = nsims,
                 error_function = error_function,
                 # lower = rep(0, length(par) ),
-                lower = c(0, -1, -1),
-                upper = rep(2, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = DEoptim.control(
                     itermax = maxit, trace = TRUE,
                     # defines the differential evolution strategy (defaults to 2)
@@ -336,8 +360,10 @@ model_fitting <- function (
                 nsims = nsims,
                 error_function = error_function,
                 method = method,
-                lower = rep(0, length(par) ),
-                upper = rep(2, length(par) ),
+                # lower = rep(0, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = list(maxit = maxit, trace = 6)
                 )
             
@@ -347,10 +373,46 @@ model_fitting <- function (
                 par = par,
                 fn = loss_function,
                 data = data,
-                lower = rep(0, length(par) ),
-                upper = rep(2, length(par) ),
+                nsims = nsims,
+                error_function = error_function,
+                # lower = rep(0, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
                 control = list(maxit = maxit, trace = 2, all.methods = TRUE)
                 )
+            
+        } else if (method == "optimParallel") {
+            
+            # using half of all available cores by default
+            cl <- makeCluster(detectCores() / 2)
+            
+            # defining this as the default cluster
+            setDefaultCluster(cl = cl)
+            
+            # loading the tidyverse package on each cluster
+            # clusterEvalQ(cl, library(optimParallel) )
+            clusterEvalQ(cl, library(tidyverse) )
+            
+            # loading model and loss function
+            clusterExport(cl, c("model", "loss_function") )
+            
+            # parallel optimisation
+            fit <- optimParallel::optimParallel(
+                par = par,
+                fn = loss_function,
+                data = data,
+                nsims = nsims,
+                error_function = error_function,
+                # lower = rep(0, length(par) ),
+                # upper = rep(2, length(par) ),
+                lower = c(0, -1, 0, -1, 0),
+                upper = c(2, 2, 1, 2, 1),
+                verbose = TRUE
+                )
+            
+            # stopping the cluster
+            stopCluster(cl)
             
         }
     

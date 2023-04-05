@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 03, 2023             #
+# Last updated on April 05, 2023             #
 ##############################################
 
 library(patchwork)
@@ -170,8 +170,9 @@ df_EI %>%
 
 ##############################################################################
 # Fitting the model to each condition
-# 3 free parameters are the activation/inhibition amplitude ratio,
-# activation_peak_time, and inhibition_peak_time
+# 5 free parameters are the activation/inhibition amplitude ratio,
+# activation_peak_time, activation_curvature,
+# inhibition_peak_time, and inhibition_curvature
 ############################################################################
 
 # importing the data-generating model
@@ -182,31 +183,39 @@ source(file = "fitting.R")
 
 # fitting the model using differential evolution
 fitting_results_IE <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_IE, nsims = 500,
+    par = c(1, 1, 1, 1, 1),
+    data = df_IE,
+    nsims = 1e3,
     error_function = "g2",
-    method = "DEoptim", maxit = 500
+    method = "DEoptim",
+    maxit = 500
     )
 
 fitting_results_EE <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_EE, nsims = 500,
+    par = c(1, 1, 1, 1, 1),
+    data = df_EE,
+    nsims = 1e3,
     error_function = "g2",
-    method = "DEoptim", maxit = 500
+    method = "DEoptim",
+    maxit = 500
     )
 
 fitting_results_II <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_II, nsims = 500,
+    par = c(1, 1, 1, 1, 1),
+    data = df_II,
+    nsims = 1e3,
     error_function = "g2",
-    method = "DEoptim", maxit = 500
+    method = "DEoptim",
+    maxit = 500
     )
 
 fitting_results_EI <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_EI, nsims = 500,
+    par = c(1, 1, 1, 1, 1),
+    data = df_EI,
+    nsims = 1e3,
     error_function = "g2",
-    method = "DEoptim", maxit = 500
+    method = "DEoptim",
+    maxit = 500
     )
 
 # getting a summary of the optimisation results
@@ -289,10 +298,10 @@ fitting_results_EI_pso <- model_fitting(
 # 0.71929 1.21016 1.73923 (bestvalit around 0.07155)
 
 # # retrieving the estimated parameters
-# estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
-# estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
-# estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
-# estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
+estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
+estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
+estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
+estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
 
 # retrieving the estimated parameters
 estimated_pars_IE <- as.numeric(fitting_results_IE_pso$par)
@@ -310,10 +319,10 @@ sim_IE <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_IE[2],
-    curvature_activ = 0.4,
+    curvature_activ = estimated_pars_IE[3],
     amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = estimated_pars_IE[3],
-    curvature_inhib = 0.6
+    peak_time_inhib = estimated_pars_IE[4],
+    curvature_inhib = estimated_pars_IE[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
@@ -412,8 +421,58 @@ sim_EI <- model(
     distinct() %>%
     dplyr::select(-sim)
 
+# plotting the implied balance function in IE trials
+model(
+    nsims = 1000, nsamples = 2000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars_IE[2],
+    curvature_activ = estimated_pars_IE[3],
+    amplitude_inhib = 1.5 / estimated_pars_IE[1],
+    peak_time_inhib = estimated_pars_IE[4],
+    curvature_inhib = estimated_pars_IE[5]
+    ) %>%
+    # pivot_longer(cols = activation:balance) %>%
+    pivot_longer(cols = balance) %>%
+    # group_by(time, name) %>%
+    # summarise(value = median(value) ) %>%
+    # ungroup() %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # plotting some individual simulations
+    # geom_line(
+    #     data = . %>% filter(sim %in% unique(sim)[1:100]),
+    #     size = 0.5, alpha = 0.1, show.legend = FALSE
+    #     ) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # geom_line(linewidth = 1, show.legend = TRUE) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Simulating activation/inhibition patterns",
+        # subtitle = "Balance function is defined as activation_current / inhibition_current",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )
+
 # plotting the distributions of RTs and MTs
-p1 <- sim_IE %>%
+sim_IE %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(

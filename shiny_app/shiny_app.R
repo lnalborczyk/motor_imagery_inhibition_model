@@ -1,11 +1,11 @@
-####################################################################
-# Shiny app to explore the model of activation/inhibition patterns #
-# during motor imagery and action-mode switching paradigms         #
-# ---------------------------------------------------------------- #
-# Written by Ladislas Nalborczyk                                   #
-# E-mail: ladislas.nalborczyk@gmail.com                            #
-# Last update: March 28, 2023                                      #
-####################################################################
+######################################################
+# Shiny app to explore the model of motor inhibition #
+# during motor imagery                               #
+# -------------------------------------------------- #
+# Written by Ladislas Nalborczyk                     #
+# E-mail: ladislas.nalborczyk@gmail.com              #
+# Last update: April 05, 2023                        #
+######################################################
 
 library(shinyhelper)
 library(tidyverse)
@@ -39,13 +39,13 @@ ui <- fluidPage(
                 inputId = "activation_beta",
                 label = "Peak time of the activation curve",
                 pre = "<i>&beta;</i> = ",
-                min = -2, max = 2, value = 0.5, step = 0.01
+                min = -2, max = 2, value = 0, step = 0.01
                 ),
             sliderInput(
                 inputId = "activation_lambda",
                 label = "Curvature of the activation curve",
                 pre = "<i>&lambda;</i> = ",
-                min = 0, max = 2, value = 0.4, step = 0.01
+                min = 0, max = 2, value = 0.2, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_alpha",
@@ -57,31 +57,31 @@ ui <- fluidPage(
                 inputId = "inhibition_beta",
                 label = "Peak time of the inhibition curve",
                 pre = "<i>&beta;</i> = ",
-                min = -2, max = 2, value = 0.5, step = 0.01
+                min = -2, max = 2, value = 0, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_lambda",
                 label = "Curvature of the inhibition curve",
                 pre = "<i>&lambda;</i> = ",
-                min = 0, max = 2, value = 0.6, step = 0.01
+                min = 0, max = 2, value = 0.4, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_previous_alpha",
                 label = "Amplitude of the inhibition curve (in the previous trial)",
                 pre = "<i>&alpha;</i> = ",
-                min = 0, max = 2, value = 1.5, step = 0.01
+                min = 0, max = 2, value = 1, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_previous_beta",
                 label = "Peak time of the inhibition curve (in the previous trial)",
                 pre = "<i>&beta;</i> = ",
-                min = 0, max = 2, value = 1, step = 0.01
+                min = -2, max = 2, value = 0, step = 0.01
                 ),
             sliderInput(
                 inputId = "inhibition_previous_lambda",
                 label = "Curvature of the inhibition curve (in the previous trial)",
                 pre = "<i>&lambda;</i> = ",
-                min = 0, max = 2, value = 0.6, step = 0.01
+                min = 0, max = 2, value = 0.4, step = 0.01
                 ),
             sliderInput(
                 inputId = "delay",
@@ -119,7 +119,7 @@ server <- function(input, output) {
     output$distPlot <- renderPlot({
         
         # defining the time scaling factor
-        timescale <- 5
+        timescale <- 1
         
         # defining the activation function for the current trial
         activation <- function (time = 0, amplitude = 1.5, peak_time = 0.5, curvature = 0.8) {
@@ -190,15 +190,6 @@ server <- function(input, output) {
             return (balance_output)
             
         }
-        
-        # computing the amplitude of inhibition_previous at t = 0
-        # t0_inhibition_previous <- inhibition_previous(
-        #     time = 0,
-        #     amplitude = input$inhibition_previous_alpha,
-        #     peak_time = input$inhibition_previous_beta,
-        #     curvature = input$inhibition_previous_lambda,
-        #     delay = input$delay
-        #     )
             
         # plotting it
         p1 <- data.frame(x = c(0, 2) ) %>%
