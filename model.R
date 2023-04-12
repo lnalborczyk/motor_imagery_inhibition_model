@@ -5,7 +5,7 @@
 # ----------------------------------------------------------- #
 # Written by Ladislas Nalborczyk                              #
 # E-mail: ladislas.nalborczyk@gmail.com                       #
-# Last updated on April 05, 2023                              #
+# Last updated on April 12, 2023                              #
 ###############################################################
 
 library(geomtextpath)
@@ -13,9 +13,9 @@ library(tidyverse)
 library(patchwork)
 library(MetBrewer)
 
-#############################################################################
+################################################################################
 # General function - Parameters
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # nsims: number of simulations (observations/trials)
 # nsamples: number of samples (time steps) within a trial
 # exec_threshold: motor execution threshold
@@ -26,35 +26,37 @@ library(MetBrewer)
 # amplitude_inhib: amplitude of the inhibition function
 # peak_time_inhib: peak time of the inhibition function
 # curvature_inhib: curvature of the inhibition function
-#####################################################################
+# full_output: boolean indicating whether activ/inhib curves should be returned
+################################################################################
 
 model <- function (
         nsims = 100, nsamples = 3000,
         exec_threshold = 1, imag_threshold = 0.5,
         amplitude_activ = 1.5, peak_time_activ = 0, curvature_activ = 0.2,
-        amplitude_inhib = 1.5, peak_time_inhib = 0, curvature_inhib = 0.4
+        amplitude_inhib = 1.5, peak_time_inhib = 0, curvature_inhib = 0.4,
+        full_output = FALSE
         ) {
     
     # defining the activation/inhibition rescaled lognormal function
     # could also use a rescaled gamma (or inverse gaussian)?
     # https://www.sciencedirect.com/science/article/abs/pii/S0010028515000195?via%3Dihub
     # peak time (in seconds) is given by exp(peak_time)
-    # activation_inhibition_function <- function (
-    #     time = 0, amplitude = 1.5, peak_time = 0, curvature = 0.4
-    #     ) {
-    # 
-    #     # adding some variability in the other parameters
-    #     # variability is currently fixed but could also be estimated
-    #     amplitude_sim <- rnorm(n = 1, mean = amplitude, sd = 0.05)
-    #     peak_time_sim <- rnorm(n = 1, mean = peak_time, sd = 0.05)
-    #     curvature_sim <- rnorm(n = 1, mean = curvature, sd = 0.01)
-    # 
-    #     activ_inhib <- amplitude_sim *
-    #         exp(-(log(time) - peak_time_sim)^2 / (2 * curvature_sim^2) )
-    # 
-    #     return (activ_inhib)
-    # 
-    # }
+    activation_inhibition_function <- function (
+        time = 0, amplitude = 1.5, peak_time = 0, curvature = 0.4
+        ) {
+
+        # adding some variability in the other parameters
+        # variability is currently fixed but could also be estimated
+        amplitude_sim <- rnorm(n = 1, mean = amplitude, sd = 0.05)
+        peak_time_sim <- rnorm(n = 1, mean = peak_time, sd = 0.05)
+        curvature_sim <- rnorm(n = 1, mean = curvature, sd = 0.01)
+
+        activ_inhib <- amplitude_sim *
+            exp(-(log(time) - peak_time_sim)^2 / (2 * curvature_sim^2) )
+
+        return (activ_inhib)
+
+    }
     
     # or directly computing the balance (ratio) between activation and
     # inhibition in the current trial (activation/inhibition)
@@ -83,8 +85,8 @@ model <- function (
                     (log(time) - peak_time_inhib_sim)^2 / (2 * curvature_inhib_sim^2) )
         
         # when time = 0, balance should be 0 as well (starting point)
-        # balance_output <- ifelse(test = time == 0, yes = 0, no = balance_output)
-    
+        balance_output <- ifelse(test = time == 0, yes = 0, no = balance_output)
+        
         # returning it
         return (balance_output)
         
@@ -100,22 +102,26 @@ model <- function (
         imag_threshold = imag_threshold
         ) %>%
         group_by(sim) %>%
-        # mutate(
-        #     activation = activation_inhibition_function(
-        #         time = time,
-        #         amplitude = amplitude_activ,
-        #         peak_time = peak_time_activ,
-        #         curvature = curvature_activ
-        #         )
-        #     ) %>%
-        # mutate(
-        #     inhibition = activation_inhibition_function(
-        #         time = time,
-        #         amplitude = amplitude_inhib,
-        #         peak_time = peak_time_inhib,
-        #         curvature = curvature_inhib
-        #         )
-        #     ) %>%
+        # if full_output = TRUE, returns activation and inhibition functions
+        # in addition to the balance function
+        {if (full_output)
+                mutate(
+                    ., activation = activation_inhibition_function(
+                        time = time,
+                        amplitude = amplitude_activ,
+                        peak_time = peak_time_activ,
+                        curvature = curvature_activ
+                        )
+                    ) %>%
+                mutate(
+                    ., inhibition = activation_inhibition_function(
+                        time = time,
+                        amplitude = amplitude_inhib,
+                        peak_time = peak_time_inhib,
+                        curvature = curvature_inhib
+                        )
+                    )
+            else . } %>%
         # mutate(balance = activation / inhibition) %>%
         mutate(
             balance = balance_funtion(

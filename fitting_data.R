@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 05, 2023             #
+# Last updated on April 12, 2023             #
 ##############################################
 
 library(patchwork)
@@ -183,39 +183,39 @@ source(file = "fitting.R")
 
 # fitting the model using differential evolution
 fitting_results_IE <- model_fitting(
-    par = c(1, 1, 1, 1, 1),
+    par = c(1, 0, 0.5, 0, 0.5),
     data = df_IE,
-    nsims = 1e3,
+    nsims = 1000,
     error_function = "g2",
     method = "DEoptim",
-    maxit = 500
+    maxit = 2000
     )
 
 fitting_results_EE <- model_fitting(
-    par = c(1, 1, 1, 1, 1),
+    par = c(1, 0, 0.5, 0, 0.5),
     data = df_EE,
-    nsims = 1e3,
+    nsims = 1000,
     error_function = "g2",
     method = "DEoptim",
-    maxit = 500
+    maxit = 2000
     )
 
 fitting_results_II <- model_fitting(
-    par = c(1, 1, 1, 1, 1),
+    par = c(1, 0, 0.5, 0, 0.5),
     data = df_II,
-    nsims = 1e3,
+    nsims = 1000,
     error_function = "g2",
     method = "DEoptim",
-    maxit = 500
+    maxit = 2000
     )
 
 fitting_results_EI <- model_fitting(
-    par = c(1, 1, 1, 1, 1),
+    par = c(1, 0, 0.5, 0, 0.5),
     data = df_EI,
-    nsims = 1e3,
+    nsims = 1000,
     error_function = "g2",
     method = "DEoptim",
-    maxit = 500
+    maxit = 2000
     )
 
 # getting a summary of the optimisation results
@@ -224,90 +224,110 @@ summary(fitting_results_EE)
 summary(fitting_results_II)
 summary(fitting_results_EI)
 
-# using wsse
+# using g2, 1000 simulated trials and 1000 iterations
 # best parameter estimates in IE sequences are
-# 1.34781 0.70156 0.57385 (bestvalit around 0.00398)
+# 1.0186 -0.10192 1.52759 -0.0785 2.03995 (bestvalit around 0.04736)
 # best parameter estimates in EE sequences are
-# 1.36582 0.64592 0.49884 (bestvalit around 0.00635)
+# 1.00645 0.10474 1.65506 0.36639 2.32876 (bestvalit around 0.04928)
 # best parameter estimates in II sequences are
-# 0.31171 0.40644 -0.20384 (bestvalit around 0.02315)
+# 0.50226 -0.31411 1.72672 -0.46571 2.09779 (bestvalit around 0.03967)
 # best parameter estimates in EI sequences are
-# 0.41025 0.50511 0.00185 (bestvalit around 0.01594)
+# 0.50326 -0.27066 1.82591 -0.43791 2.35464 (bestvalit around 0.00886)
 
-# using g2
-# best parameter estimates in IE sequences are
-# 0.78142 1.2121 1.70929 (bestvalit around 0.10678)
-# best parameter estimates in EE sequences are
-# 0.76605 1.1994 1.71286 (bestvalit around 0.06786)
-# best parameter estimates in IE sequences are
-# 0.08034 0.11802 -0.82256 (bestvalit around 0.0936)
-# best parameter estimates in EE sequences are
-# 0.12722 0.20348 -0.63707 (bestvalit around 0.12335)
-
-# fitting the model using particle swarm optimisation
-fitting_results_IE_pso <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_IE,
-    # nsims = 500,
-    error_function = "g2",
-    method = "pso", maxit = 2000
-    )
-
-fitting_results_EE_pso <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_EE,
-    # nsims = 500,
-    error_function = "g2",
-    method = "pso", maxit = 2000
-    )
-
-fitting_results_II_pso <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_II,
-    # nsims = 500,
-    error_function = "g2",
-    method = "pso", maxit = 2000
-    )
-
-fitting_results_EI_pso <- model_fitting(
-    par = c(1, 1, 1),
-    data = df_EI,
-    # nsims = 500,
-    error_function = "g2",
-    method = "pso", maxit = 2000
-    )
-
-# using wsse
-# best parameter estimates in IE sequences are
-# 1.3416345 0.6961862 0.5544498 (bestvalit around 0.002970687)
-# best parameter estimates in EE sequences are
-# 1.3310512 0.6231945 0.4340981 (bestvalit around 0.005490737)
-# best parameter estimates in II sequences are
-# 0.42559993 0.52572246 0.02623149 (bestvalit around 0.02618343)
-# best parameter estimates in EI sequences are
-# 0.3310483 0.4530563 -0.1149336 (bestvalit around 0.01360734)
-
-# using g2
-# best parameter estimates in IE sequences are
-# 0.71413 1.22771 1.75257 (bestvalit around 0.11502)
-# best parameter estimates in EE sequences are
-# 0.71929 1.21016 1.73923 (bestvalit around 0.07155)
-# best parameter estimates in IE sequences are
-# 0.71413 1.22771 1.75257 (bestvalit around 0.11502)
-# best parameter estimates in EE sequences are
-# 0.71929 1.21016 1.73923 (bestvalit around 0.07155)
-
-# # retrieving the estimated parameters
+# retrieving the estimated parameters
 estimated_pars_IE <- as.numeric(fitting_results_IE$optim$bestmem)
 estimated_pars_EE <- as.numeric(fitting_results_EE$optim$bestmem)
 estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
 estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
 
+# fitting the model using particle swarm optimisation
+fitting_results_IE_pso <- model_fitting(
+    # par = c(1, 1, 1, 1, 1),
+    par = estimated_pars_IE,
+    data = df_IE,
+    nsims = 1000,
+    error_function = "g2",
+    method = "pso",
+    maxit = 2000
+    )
+
+fitting_results_EE_pso <- model_fitting(
+    # par = c(1, 1, 1, 1, 1),
+    par = estimated_pars_EE,
+    data = df_EE,
+    nsims = 1000,
+    error_function = "g2",
+    method = "pso",
+    maxit = 2000
+    )
+
+fitting_results_II_pso <- model_fitting(
+    # par = c(1, 1, 1, 1, 1),
+    par = estimated_pars_II,
+    data = df_II,
+    nsims = 1000,
+    error_function = "g2",
+    method = "pso",
+    maxit = 2000
+    )
+
+fitting_results_EI_pso <- model_fitting(
+    # par = c(1, 1, 1, 1, 1),
+    par = estimated_pars_EI,
+    data = df_EI,
+    nsims = 1000,
+    error_function = "g2",
+    method = "pso",
+    maxit = 2000
+    )
+
+# using g2, 1000 simulated trials and 1000 iterations
+# best parameter estimates in IE sequences are
+# 1.97701555 0.06284588 0.06263408 0.99966417 0.15406468 (bestvalit around 0.06487346)
+# best parameter estimates in EE sequences are
+# 1.62723715 0.04837623 0.05899386 0.99993729 0.14760247 (bestvalit around 0.05658119)
+# best parameter estimates in II sequences are
+# 1.96395391 0.22935939 0.04865418 0.98947350 0.09911938 (bestvalit around 0.360675)
+# best parameter estimates in EI sequences are
+# 0.5033786 -0.2723716 1.8453853 -0.4490106 2.3700998 (bestvalit around 0.003638892)
+
 # retrieving the estimated parameters
-estimated_pars_IE <- as.numeric(fitting_results_IE_pso$par)
-estimated_pars_EE <- as.numeric(fitting_results_EE_pso$par)
-estimated_pars_II <- as.numeric(fitting_results_II_pso$par)
-estimated_pars_EI <- as.numeric(fitting_results_EI_pso$par)
+estimated_pars_IE_pso <- as.numeric(fitting_results_IE_pso$par)
+estimated_pars_EE_pso <- as.numeric(fitting_results_EE_pso$par)
+estimated_pars_II_pso <- as.numeric(fitting_results_II_pso$par)
+estimated_pars_EI_pso <- as.numeric(fitting_results_EI_pso$par)
+
+# polishing the estimated parameters with an additional simplex run
+# fitting_results_EI_polished <- model_fitting(
+#     par = as.numeric(fitting_results_EI_pso$par),
+#     data = df_II,
+#     nsims = 1e4,
+#     error_function = "g2",
+#     method = "optimParallel",
+#     maxit = 50
+#     )
+
+# putting everything in a table and exporting it
+par_names <- c(
+    "amplitude_ratio", "peak_time_activ", "curvature_activ",
+    "peak_time_inhib", "curvature_inhib"
+    )
+
+data.frame(
+    par_names = par_names,
+    IE = estimated_pars_IE,
+    EE = estimated_pars_EE,
+    II = estimated_pars_II,
+    EI = estimated_pars_EI
+    ) %>%
+    pivot_longer(cols = IE:EI, names_to = "condition") %>%
+    mutate(error_value = rep(c(
+        fitting_results_II_pso$value, fitting_results_II_pso$value,
+        fitting_results_II_pso$value, fitting_results_EI_pso$value
+        ), 5) ) %>%
+    data.frame() %>%
+    mutate(across(value:error_value, ~ round(.x, 6) ) ) %>%
+    write.csv(file = "fitting_results/parameter_estimates_bart_et_al_2020.csv", row.names = FALSE)
 
 ################################################
 # predictive checks
@@ -315,7 +335,7 @@ estimated_pars_EI <- as.numeric(fitting_results_EI_pso$par)
 
 # simulating implied distribution of RTs and MTs using the estimated parameters
 sim_IE <- model(
-    nsims = 1000, nsamples = 2000,
+    nsims = 1000, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_IE[2],
@@ -326,10 +346,6 @@ sim_IE <- model(
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
-    # mutate(action_mode = ifelse(
-    #     test = estimated_pars_IE[1] >= 1,
-    #     yes = "executed", no = "imagined"
-    #     ) ) %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -346,17 +362,13 @@ sim_EE <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_EE[2],
-    curvature_activ = 0.4,
+    curvature_activ = estimated_pars_EE[3],
     amplitude_inhib = 1.5 / estimated_pars_EE[1],
-    peak_time_inhib = estimated_pars_EE[3],
-    curvature_inhib = 0.6
+    peak_time_inhib = estimated_pars_EE[4],
+    curvature_inhib = estimated_pars_EE[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
-    # mutate(action_mode = ifelse(
-    #     test = estimated_pars_EE[3] >= 1,
-    #     yes = "imagined", no = "executed"
-    #     ) ) %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -373,17 +385,13 @@ sim_II <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_II[2],
-    curvature_activ = 0.4,
+    curvature_activ = estimated_pars_II[3],
     amplitude_inhib = 1.5 / estimated_pars_II[1],
-    peak_time_inhib = estimated_pars_II[3],
-    curvature_inhib = 0.6
+    peak_time_inhib = estimated_pars_II[4],
+    curvature_inhib = estimated_pars_II[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "imagined") %>%
-    # mutate(action_mode = ifelse(
-    #     test = estimated_pars_EE[3] >= 1,
-    #     yes = "imagined", no = "executed"
-    #     ) ) %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -399,18 +407,14 @@ sim_EI <- model(
     nsims = 1000, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_EI[2],
-    curvature_activ = 0.4,
-    amplitude_inhib = 1.5 / estimated_pars_EI[1],
-    peak_time_inhib = estimated_pars_EI[3],
-    curvature_inhib = 0.6
+    peak_time_activ = estimated_pars_EI_pso[2],
+    curvature_activ = estimated_pars_EI_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_EI_pso[1],
+    peak_time_inhib = estimated_pars_EI_pso[4],
+    curvature_inhib = estimated_pars_EI_pso[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "imagined") %>%
-    # mutate(action_mode = ifelse(
-    #     test = estimated_pars_EE[3] >= 1,
-    #     yes = "imagined", no = "executed"
-    #     ) ) %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -421,58 +425,8 @@ sim_EI <- model(
     distinct() %>%
     dplyr::select(-sim)
 
-# plotting the implied balance function in IE trials
-model(
-    nsims = 1000, nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_IE[2],
-    curvature_activ = estimated_pars_IE[3],
-    amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = estimated_pars_IE[4],
-    curvature_inhib = estimated_pars_IE[5]
-    ) %>%
-    # pivot_longer(cols = activation:balance) %>%
-    pivot_longer(cols = balance) %>%
-    # group_by(time, name) %>%
-    # summarise(value = median(value) ) %>%
-    # ungroup() %>%
-    ggplot(
-        aes(
-            x = time, y = value,
-            group = interaction(sim, name),
-            colour = name
-            )
-        ) +
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.5, linetype = 2) +
-    # plotting some individual simulations
-    # geom_line(
-    #     data = . %>% filter(sim %in% unique(sim)[1:100]),
-    #     size = 0.5, alpha = 0.1, show.legend = FALSE
-    #     ) +
-    # plotting average
-    stat_summary(
-        aes(group = name, colour = name),
-        fun = "median", geom = "line",
-        linewidth = 1, alpha = 1,
-        show.legend = TRUE
-        ) +
-    # geom_line(linewidth = 1, show.legend = TRUE) +
-    theme_bw(base_size = 12, base_family = "Open Sans") +
-    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
-    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
-    labs(
-        title = "Simulating activation/inhibition patterns",
-        # subtitle = "Balance function is defined as activation_current / inhibition_current",
-        x = "Time within a trial (in seconds)",
-        y = "Activation/inhibition (a.u.)",
-        colour = "",
-        fill = ""
-        )
-
 # plotting the distributions of RTs and MTs
-sim_IE %>%
+p1 <- sim_IE %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(
@@ -560,7 +514,63 @@ p4 <- sim_EI %>%
 
 # saving the plot
 ggsave(
-    filename = "figures/predictive_checks_bart_et_al_2020_pso_g2_2000_iter.png",
+    filename = "fitting_results/predictive_checks_bart_et_al_2020.png",
     width = 12, height = 8, dpi = 300,
     device = "png"
     )
+
+#################################################################
+# plotting the implied balance function in IE trials
+##########################################################
+
+parameters_estimates_summary <- paste(as.vector(rbind(
+    paste0(par_names, ": "),
+    paste0(as.character(round(estimated_pars_II, 3) ), "\n")
+    ) ), collapse = "") %>% str_sub(end = -2)
+
+model(
+    nsims = 1e2, nsamples = 3000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars_EI_pso[2],
+    curvature_activ = estimated_pars_EI_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_EI_pso[1],
+    peak_time_inhib = estimated_pars_EI_pso[4],
+    curvature_inhib = estimated_pars_EI_pso[5],
+    full_output = TRUE
+    ) %>%
+    pivot_longer(cols = activation:balance) %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # displaying estimated parameter values
+    annotate(
+        geom = "label",
+        x = -Inf, y = Inf,
+        hjust = -0.1, vjust = 1.1,
+        label = parameters_estimates_summary,
+        family = "Courier"
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Activation/inhibition patterns in imagined-executed sequences",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )

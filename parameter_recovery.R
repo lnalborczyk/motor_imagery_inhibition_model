@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 04, 2023             #
+# Last updated on April 07, 2023             #
 ##############################################
 
 # importing the data-generating model
@@ -13,7 +13,6 @@ source(file = "model.R")
 source(file = "fitting.R")
 
 # true parameter values in EE sequences
-# true_pars <- c(1.5, 0.5, 0.5)
 true_pars <- c(1.5, 0, 0.2, 0, 0.4)
 
 # simulating data
@@ -22,10 +21,10 @@ df <- model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = true_pars[2],
-    curvature_activ = true_pars[3], # 0.4,
+    curvature_activ = true_pars[3],
     amplitude_inhib = 1.5 / true_pars[1],
     peak_time_inhib = true_pars[4],
-    curvature_inhib = true_pars[5] # 0.6
+    curvature_inhib = true_pars[5]
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -169,10 +168,10 @@ model(
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars[2],
-    curvature_activ = estimated_pars[3], # 0.4,
+    curvature_activ = estimated_pars[3],
     amplitude_inhib = 1.5 / estimated_pars[1],
     peak_time_inhib = estimated_pars[4],
-    curvature_inhib = estimated_pars[5] # 0.6
+    curvature_inhib = estimated_pars[5]
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -237,7 +236,7 @@ parameters <- c(
 
 # should also vary N (as in White et al., 2019)
 # nobs <- c(50, 100, 200, 500)
-nobs <- c(100, 500)
+nobs <- 200
 
 # initialise results dataframe
 par_recov_results <- crossing(
@@ -276,8 +275,8 @@ for (i in 1:max(par_recov_results$study_id) ) {
     
     # simulating some data
     temp_df <- model(
-        nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
-        # nsims = 100,
+        # nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        nsims = 200,
         nsamples = 2000,
         exec_threshold = 1, imag_threshold = 0.5,
         amplitude_activ = 1.5,
@@ -399,10 +398,15 @@ ggsave(
     )
 
 # computing the goodness-of-recovery statistic (cf. White et al., 2019, 10.3758/s13423-017-1271-2)
+# the normalised RMSE and the R-squared (cf. Ghaderi-Kangavari et al., 2023)
 par_recov_results %>%
     group_by(parameters, nobs) %>%
     summarise(
         eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ) %>%
+            round(., 3),
+        nrmse = sqrt(mean(estimated_pars - true_pars)^2) / (max(true_pars) - min(true_pars) ) %>%
+            round(., 3),
+        r2 = 1 - sum(estimated_pars - true_pars)^2 / sum(true_pars - mean(true_pars) ) %>%
             round(., 3)
         ) %>%
     ungroup() %>%

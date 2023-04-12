@@ -3,11 +3,11 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on April 05, 2023            #
+# Last updated on April 11, 2023            #
 #############################################
 
 library(optimParallel) # parallelised simplex (L-BFGS-B)
-library(hydroPSO) # particle swarm optimisation
+library(hydroPSO) # parallelised particle swarm optimisation
 library(DEoptim) # global optimisation by differential evolution
 library(optimx) # various optimisation methods
 library(GenSA) # generalised simulated annealing
@@ -44,46 +44,46 @@ loss_function <- function (
     ############################################################################
     # adding some constraints
     # ------------------------------------------------------------------------
-    # balance_max should not be above exec_threshold in imagined trials
-    # balance_max should not be above 2 * exec_threshold in executed trials
+    # balance max should not be above exec_threshold in imagined trials
+    # balance max should not be above 2 * exec_threshold in executed trials
     # curvature_activ should be lower than curvature_inhib 
     # balance peak time can not be smaller than the shortest RT
     # imagery threshold cannot be higher than execution threshold
     #########################################################################
-    
-    # computing the maximum value of the balance function
-    balance_max <- (amplitude_activ / amplitude_inhib) *
-        exp(-((peak_time_activ - peak_time_inhib)^2 / (2 * (curvature_activ^2 + curvature_inhib^2) ) ) )
-    
-    # computing the peak time of the balance function
-    # balance_peak_time <- exp(((mu_f / sigma_f^2) + (mu_g / sigma_g^2)) / ((1 / sigma_f^2) + (1 / sigma_g^2) ) )
+
+    # computing the peak time (mode) of the balance function
     balance_peak_time <- exp(
         (peak_time_activ * curvature_inhib^2 - peak_time_inhib * curvature_activ^2) /
             (curvature_inhib^2 - curvature_activ^2) )
+    
+    # computing the maximum value of the balance function
+    balance_max <- (amplitude_activ / amplitude_inhib) *
+        exp(-(log(balance_peak_time) - peak_time_activ)^2 / (2 * curvature_activ^2) +
+                (log(balance_peak_time) - peak_time_inhib)^2 / (2 * curvature_inhib^2) )
+    
+    if (unique(data$action_mode) == "imagined" & !is.na(balance_max) & balance_max > exec_threshold) {
 
-    if (unique(data$action_mode) == "imagined" & balance_max > exec_threshold) {
-
-        prediction_error <- 1e6
+        prediction_error <- 1e9
         return (prediction_error)
 
-    } else if (unique(data$action_mode) == "executed" & balance_max > 2 * exec_threshold) {
+    } else if (unique(data$action_mode) == "executed" & !is.na(balance_max) & balance_max > 2 * exec_threshold) {
 
-        prediction_error <- 1e6
+        prediction_error <- 1e9
         return (prediction_error)
     
     } else if (curvature_activ >= curvature_inhib) {
         
-        prediction_error <- 1e6
+        prediction_error <- 1e9
         return (prediction_error)
     
     } else if (!is.na(balance_peak_time) & balance_peak_time < min(data$reaction_time) ) {
 
-        prediction_error <- 1e6
+        prediction_error <- 1e9
         return (prediction_error)
 
     } else if (imag_threshold > exec_threshold) {
         
-        prediction_error <- 1e6
+        prediction_error <- 1e9
         return (prediction_error)
         
     }
@@ -163,16 +163,24 @@ loss_function <- function (
         observed_mt_quantiles <- quantile(x = data$movement_time, probs = quantile_probs, na.rm = TRUE)
         
         # computes observed proportion of data in RT quantiles
-        observed_rt_quantiles_props <- find_quantiles_props(x = data$reaction_time, quants = observed_rt_quantiles)
+        observed_rt_quantiles_props <- find_quantiles_props(
+            x = data$reaction_time, quants = observed_rt_quantiles
+            )
         
         # computes observed proportion of data in MT quantiles
-        observed_mt_quantiles_props <- find_quantiles_props(x = data$movement_time, quants = observed_mt_quantiles)
+        observed_mt_quantiles_props <- find_quantiles_props(
+            x = data$movement_time, quants = observed_mt_quantiles
+            )
         
         # computes predicted proportion of data in RT quantiles
-        predicted_rt_quantiles_props <- find_quantiles_props(x = predicted_rt, quants = observed_rt_quantiles)
+        predicted_rt_quantiles_props <- find_quantiles_props(
+            x = predicted_rt, quants = observed_rt_quantiles
+            )
         
         # computes predicted proportion of data in MT quantiles
-        predicted_mt_quantiles_props <- find_quantiles_props(x = predicted_mt, quants = observed_mt_quantiles)
+        predicted_mt_quantiles_props <- find_quantiles_props(
+            x = predicted_mt, quants = observed_mt_quantiles
+            )
         
         # applies a small correction when prop = 0 to avoid negative or Inf g-square
         predicted_rt_quantiles_props <- ifelse(
@@ -182,7 +190,8 @@ loss_function <- function (
             )
         
         # makes sure proportions sum to 1
-        predicted_rt_quantiles_props <- predicted_rt_quantiles_props / sum(predicted_rt_quantiles_props)
+        predicted_rt_quantiles_props <- predicted_rt_quantiles_props /
+            sum(predicted_rt_quantiles_props)
         
         # applies a small correction when prop = 0 to avoid negative or Inf g-square
         predicted_mt_quantiles_props <- ifelse(
@@ -192,11 +201,13 @@ loss_function <- function (
             )
         
         # makes sure proportions sum to 1
-        predicted_mt_quantiles_props <- predicted_mt_quantiles_props / sum(predicted_mt_quantiles_props)
+        predicted_mt_quantiles_props <- predicted_mt_quantiles_props /
+            sum(predicted_mt_quantiles_props)
         
         # computes the G^2 prediction error (except it is not multiplied by 2)
         # which is the error for RTs plus the error for MTs
-        # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or Servant et al. (2019, doi:10.1152/jn.00507.2018)
+        # see Ratcliff & Smith (2004, doi:10.1037/0033-295X.111.2.333) or
+        # Servant et al. (2019, doi:10.1152/jn.00507.2018)
         prediction_error <- sum(observed_rt_quantiles_props * log(observed_rt_quantiles_props / predicted_rt_quantiles_props) ) +
             sum(observed_mt_quantiles_props * log(observed_mt_quantiles_props / predicted_mt_quantiles_props) )
         
@@ -283,7 +294,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = list(maxit = maxit, verbose = TRUE)
                 )
         
@@ -298,7 +309,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
             
@@ -313,7 +324,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = list(
                     maxit = maxit,
                     verbose = TRUE,
@@ -332,7 +343,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = DEoptim.control(
                     itermax = maxit, trace = TRUE,
                     # defines the differential evolution strategy (defaults to 2)
@@ -363,7 +374,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = list(maxit = maxit, trace = 6)
                 )
             
@@ -378,7 +389,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 control = list(maxit = maxit, trace = 2, all.methods = TRUE)
                 )
             
@@ -407,7 +418,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(2, 2, 1, 2, 1),
+                upper = c(3, 2, 3, 2, 3),
                 verbose = TRUE
                 )
             
