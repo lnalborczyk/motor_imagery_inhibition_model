@@ -520,7 +520,7 @@ ggsave(
     )
 
 #################################################################
-# plotting the implied balance function in IE trials
+# plotting the implied balance functions per condition
 ##########################################################
 
 parameters_estimates_summary <- paste(as.vector(rbind(
@@ -574,3 +574,13 @@ model(
         colour = "",
         fill = ""
         )
+
+# combining all plots
+(p5 + p6) / (p7 + p8)
+
+# saving the plot
+ggsave(
+    filename = "fitting_results/balance_function_per_condition_bart_et_al_2020.png",
+    width = 12, height = 8, dpi = 300,
+    device = "png"
+    )
