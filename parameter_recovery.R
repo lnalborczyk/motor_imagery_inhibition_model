@@ -6,6 +6,9 @@
 # Last updated on April 07, 2023             #
 ##############################################
 
+# to compute the concordance correlation coefficient (CCC)
+library(DescTools)
+
 # importing the data-generating model
 source(file = "model.R")
 

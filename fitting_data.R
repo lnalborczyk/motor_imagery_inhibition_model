@@ -3,9 +3,11 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 12, 2023             #
+# Last updated on April 13, 2023             #
 ##############################################
 
+library(geomtextpath)
+library(DescTools)
 library(patchwork)
 library(tidyverse)
 library(MetBrewer)
@@ -230,7 +232,7 @@ summary(fitting_results_EI)
 # best parameter estimates in EE sequences are
 # 1.00645 0.10474 1.65506 0.36639 2.32876 (bestvalit around 0.04928)
 # best parameter estimates in II sequences are
-# 0.50226 -0.31411 1.72672 -0.46571 2.09779 (bestvalit around 0.03967)
+# 0.50493 -0.18265 1.84112 -0.28742 2.27325 (bestvalit around 0.03422)
 # best parameter estimates in EI sequences are
 # 0.50326 -0.27066 1.82591 -0.43791 2.35464 (bestvalit around 0.00886)
 
@@ -287,7 +289,7 @@ fitting_results_EI_pso <- model_fitting(
 # best parameter estimates in EE sequences are
 # 1.62723715 0.04837623 0.05899386 0.99993729 0.14760247 (bestvalit around 0.05658119)
 # best parameter estimates in II sequences are
-# 1.96395391 0.22935939 0.04865418 0.98947350 0.09911938 (bestvalit around 0.360675)
+# 0.50621570 -0.06152026  1.99485325 -0.10669794 2.59653529 (bestvalit around 0.03788327)
 # best parameter estimates in EI sequences are
 # 0.5033786 -0.2723716 1.8453853 -0.4490106 2.3700998 (bestvalit around 0.003638892)
 
@@ -307,18 +309,18 @@ estimated_pars_EI_pso <- as.numeric(fitting_results_EI_pso$par)
 #     maxit = 50
 #     )
 
-# putting everything in a table and exporting it
+# putting everything in a table
 par_names <- c(
     "amplitude_ratio", "peak_time_activ", "curvature_activ",
     "peak_time_inhib", "curvature_inhib"
     )
 
-data.frame(
+estimates_summary <- data.frame(
     par_names = par_names,
     IE = estimated_pars_IE,
     EE = estimated_pars_EE,
-    II = estimated_pars_II,
-    EI = estimated_pars_EI
+    II = estimated_pars_II_pso,
+    EI = estimated_pars_EI_pso
     ) %>%
     pivot_longer(cols = IE:EI, names_to = "condition") %>%
     mutate(error_value = rep(c(
@@ -326,8 +328,14 @@ data.frame(
         fitting_results_II_pso$value, fitting_results_EI_pso$value
         ), 5) ) %>%
     data.frame() %>%
-    mutate(across(value:error_value, ~ round(.x, 6) ) ) %>%
-    write.csv(file = "fitting_results/parameter_estimates_bart_et_al_2020.csv", row.names = FALSE)
+    mutate(across(value:error_value, ~ round(.x, 6) ) )
+
+# exporting it as a csv file
+write.csv(
+    x = estimates_summary,
+    file = "fitting_results/parameter_estimates_bart_et_al_2020.csv",
+    row.names = FALSE
+    )
 
 ################################################
 # predictive checks
@@ -384,11 +392,11 @@ sim_II <- model(
     nsims = 1000, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_II[2],
-    curvature_activ = estimated_pars_II[3],
-    amplitude_inhib = 1.5 / estimated_pars_II[1],
-    peak_time_inhib = estimated_pars_II[4],
-    curvature_inhib = estimated_pars_II[5]
+    peak_time_activ = estimated_pars_II_pso[2],
+    curvature_activ = estimated_pars_II_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_II_pso[1],
+    peak_time_inhib = estimated_pars_II_pso[4],
+    curvature_inhib = estimated_pars_II_pso[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "imagined") %>%
@@ -510,7 +518,7 @@ p4 <- sim_EI %>%
         )
 
 # combining all plots
-(p1 + p3) / (p2 + p4)
+(p1 + p3) / (p2 + p4) # + plot_annotation(title = 'The surprising truth about mtcars')
 
 # saving the plot
 ggsave(
@@ -519,24 +527,168 @@ ggsave(
     device = "png"
     )
 
+##############################################################################
+# checking observed and predicted (simulated) quantiles
+# cf http://singmann.org/wiener-model-analysis-with-brms-part-ii/
+##########################################################################  
+
+# what quantiles should we look at?
+quantile_probs <- seq(0.1, 0.9, 0.1)
+
+qq_ie <- bind_rows(
+    df_IE %>% mutate(type = "observed"),
+    sim_IE  %>% mutate(type = "simulated")
+    ) %>%
+    pivot_longer(names_to = "measure", cols = reaction_time:movement_time) %>%
+    group_by(type, measure) %>%
+    # summarise(quants = quantile(x = value, probs = quantile_probs, na.rm = TRUE) ) %>%
+    reframe(enframe(quantile(x = value, probs = quantile_probs, na.rm = TRUE, names = TRUE) ) ) %>%
+    ungroup() %>%
+    # pivot_wider(names_from = type, values_from = value) %>%
+    # group_by(measure) %>%
+    # mutate(ccc = format(CCC(x = observed, y = simulated, na.rm = TRUE)$rho.c$est, digits = 2) ) %>%
+    # ungroup()
+    ggplot(
+        aes(
+            x = name, y = value,
+            group = interaction(type, measure),
+            colour = measure, fill = measure,
+            shape = type
+            )
+        ) +
+    geom_line(alpha = 0.5, linetype = 3) +
+    geom_point(
+        size = 4,
+        alpha = 0.9,
+        show.legend = TRUE
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
+    labs(
+        title = "Imagined-executed sequences",
+        x = "Percentile", y = "Time (in seconds)"
+        )
+
+qq_ee <- bind_rows(
+    df_EE %>% mutate(type = "observed"),
+    sim_EE  %>% mutate(type = "simulated")
+    ) %>%
+    pivot_longer(names_to = "measure", cols = reaction_time:movement_time) %>%
+    group_by(type, measure) %>%
+    reframe(enframe(quantile(x = value, probs = quantile_probs, na.rm = TRUE, names = TRUE) ) ) %>%
+    ungroup() %>%
+    ggplot(
+        aes(
+            x = name, y = value,
+            group = interaction(type, measure),
+            colour = measure, fill = measure,
+            shape = type
+            )
+        ) +
+    geom_line(alpha = 0.5, linetype = 3) +
+    geom_point(
+        size = 4,
+        alpha = 0.9,
+        show.legend = TRUE
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
+    labs(
+        title = "Executed-executed sequences",
+        x = "Percentile", y = "Time (in seconds)"
+        )
+
+qq_ii <- bind_rows(
+    df_II %>% mutate(type = "observed"),
+    sim_II  %>% mutate(type = "simulated")
+    ) %>%
+    pivot_longer(names_to = "measure", cols = reaction_time:movement_time) %>%
+    group_by(type, measure) %>%
+    reframe(enframe(quantile(x = value, probs = quantile_probs, na.rm = TRUE, names = TRUE) ) ) %>%
+    ungroup() %>%
+    ggplot(
+        aes(
+            x = name, y = value,
+            group = interaction(type, measure),
+            colour = measure, fill = measure,
+            shape = type
+            )
+        ) +
+    geom_line(alpha = 0.5, linetype = 3) +
+    geom_point(
+        size = 4,
+        alpha = 0.9,
+        show.legend = TRUE
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
+    labs(
+        title = "Imagined-imagined sequences",
+        x = "Percentile", y = "Time (in seconds)"
+        )
+
+qq_ei <- bind_rows(
+    df_EI %>% mutate(type = "observed"),
+    sim_EI  %>% mutate(type = "simulated")
+    ) %>%
+    pivot_longer(names_to = "measure", cols = reaction_time:movement_time) %>%
+    group_by(type, measure) %>%
+    reframe(enframe(quantile(x = value, probs = quantile_probs, na.rm = TRUE, names = TRUE) ) ) %>%
+    ungroup() %>%
+    ggplot(
+        aes(
+            x = name, y = value,
+            group = interaction(type, measure),
+            colour = measure, fill = measure,
+            shape = type
+            )
+        ) +
+    geom_line(alpha = 0.5, linetype = 3) +
+    geom_point(
+        size = 4,
+        alpha = 0.9,
+        show.legend = TRUE
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
+    scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
+    labs(
+        title = "Executed-imagined sequences",
+        x = "Percentile", y = "Time (in seconds)"
+        )
+
+# combining all plots
+(qq_ie + qq_ee) / (qq_ii + qq_ei) +
+    plot_layout(guides = "collect") & theme(legend.position = "bottom")
+
+# saving the plot
+ggsave(
+    filename = "fitting_results/quantile_plot_bart_et_al_2020.png",
+    width = 16, height = 10, dpi = 300,
+    device = "png"
+    )
+
 #################################################################
 # plotting the implied balance functions per condition
-##########################################################
+###########################################################
 
-parameters_estimates_summary <- paste(as.vector(rbind(
+parameters_estimates_summary_IE <- paste(as.vector(rbind(
     paste0(par_names, ": "),
-    paste0(as.character(round(estimated_pars_II, 3) ), "\n")
+    paste0(as.character(round(estimated_pars_IE, 3) ), "\n")
     ) ), collapse = "") %>% str_sub(end = -2)
 
-model(
+p5 <- model(
     nsims = 1e2, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_EI_pso[2],
-    curvature_activ = estimated_pars_EI_pso[3],
-    amplitude_inhib = 1.5 / estimated_pars_EI_pso[1],
-    peak_time_inhib = estimated_pars_EI_pso[4],
-    curvature_inhib = estimated_pars_EI_pso[5],
+    peak_time_activ = estimated_pars_IE[2],
+    curvature_activ = estimated_pars_IE[3],
+    amplitude_inhib = 1.5 / estimated_pars_IE[1],
+    peak_time_inhib = estimated_pars_IE[4],
+    curvature_inhib = estimated_pars_IE[5],
     full_output = TRUE
     ) %>%
     pivot_longer(cols = activation:balance) %>%
@@ -559,16 +711,183 @@ model(
     # displaying estimated parameter values
     annotate(
         geom = "label",
-        x = -Inf, y = Inf,
-        hjust = -0.1, vjust = 1.1,
-        label = parameters_estimates_summary,
+        x = Inf, y = Inf,
+        hjust = 1, vjust = 1,
+        label = parameters_estimates_summary_IE,
         family = "Courier"
         ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
     scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
     labs(
-        title = "Activation/inhibition patterns in imagined-executed sequences",
+        title = "Imagined-executed sequences",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )
+
+parameters_estimates_summary_EE <- paste(as.vector(rbind(
+    paste0(par_names, ": "),
+    paste0(as.character(round(estimated_pars_EE, 3) ), "\n")
+    ) ), collapse = "") %>% str_sub(end = -2)
+
+p6 <- model(
+    nsims = 1e2, nsamples = 3000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars_EE[2],
+    curvature_activ = estimated_pars_EE[3],
+    amplitude_inhib = 1.5 / estimated_pars_EE[1],
+    peak_time_inhib = estimated_pars_EE[4],
+    curvature_inhib = estimated_pars_EE[5],
+    full_output = TRUE
+    ) %>%
+    pivot_longer(cols = activation:balance) %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # displaying estimated parameter values
+    annotate(
+        geom = "label",
+        x = Inf, y = Inf,
+        hjust = 1, vjust = 1,
+        label = parameters_estimates_summary_EE,
+        family = "Courier"
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Executed-executed sequences",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )
+
+parameters_estimates_summary_II <- paste(as.vector(rbind(
+    paste0(par_names, ": "),
+    paste0(as.character(round(estimated_pars_II_pso, 3) ), "\n")
+    ) ), collapse = "") %>% str_sub(end = -2)
+
+p7 <- model(
+    nsims = 1e2, nsamples = 3000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars_II_pso[2],
+    curvature_activ = estimated_pars_II_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_II_pso[1],
+    peak_time_inhib = estimated_pars_II_pso[4],
+    curvature_inhib = estimated_pars_II_pso[5],
+    full_output = TRUE
+    ) %>%
+    pivot_longer(cols = activation:balance) %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # displaying estimated parameter values
+    annotate(
+        geom = "label",
+        x = Inf, y = Inf,
+        hjust = 1, vjust = 1,
+        label = parameters_estimates_summary_II,
+        family = "Courier"
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Imagined-imagined sequences",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )
+
+parameters_estimates_summary_EI <- paste(as.vector(rbind(
+    paste0(par_names, ": "),
+    paste0(as.character(round(estimated_pars_EI_pso, 3) ), "\n")
+    ) ), collapse = "") %>% str_sub(end = -2)
+
+p8 <- model(
+    nsims = 1e2, nsamples = 3000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = estimated_pars_EI_pso[2],
+    curvature_activ = estimated_pars_EI_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_EI_pso[1],
+    peak_time_inhib = estimated_pars_EI_pso[4],
+    curvature_inhib = estimated_pars_EI_pso[5],
+    full_output = TRUE
+    ) %>%
+    pivot_longer(cols = activation:balance) %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    # plotting the motor execution and motor imagery thresholds
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # geom_texthline(
+    #     yintercept = 1, linetype = 2,
+    #     hjust = 0.9,
+    #     label = "Motor execution threshold"
+    #     ) +
+    # geom_texthline(
+    #     yintercept = 0.5, linetype = 2,
+    #     hjust = 0.9,
+    #     label = "Motor imagery threshold"
+    #     ) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # displaying estimated parameter values
+    annotate(
+        geom = "label",
+        x = Inf, y = Inf,
+        hjust = 1, vjust = 1,
+        label = parameters_estimates_summary_EI,
+        family = "Courier"
+        ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Executed-imagined sequences",
         x = "Time within a trial (in seconds)",
         y = "Activation/inhibition (a.u.)",
         colour = "",
@@ -576,11 +895,16 @@ model(
         )
 
 # combining all plots
-(p5 + p6) / (p7 + p8)
+(p5 + p6) / (p7 + p8) +
+    # plot_annotation(
+    #     title = "Activation/inhibition patterns",
+    #     theme = theme_bw(base_size = 12, base_family = "Open Sans")
+    #     ) +
+    plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # saving the plot
 ggsave(
     filename = "fitting_results/balance_function_per_condition_bart_et_al_2020.png",
-    width = 12, height = 8, dpi = 300,
+    width = 16, height = 10, dpi = 300,
     device = "png"
     )
