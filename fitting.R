@@ -294,7 +294,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = list(maxit = maxit, verbose = TRUE)
                 )
         
@@ -309,7 +309,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
                 )
             
@@ -324,7 +324,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = list(
                     maxit = maxit,
                     verbose = TRUE,
@@ -343,7 +343,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = DEoptim.control(
                     itermax = maxit, trace = TRUE,
                     # defines the differential evolution strategy (defaults to 2)
@@ -374,7 +374,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = list(maxit = maxit, trace = 6)
                 )
             
@@ -389,7 +389,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 control = list(maxit = maxit, trace = 2, all.methods = TRUE)
                 )
             
@@ -418,7 +418,7 @@ model_fitting <- function (
                 # lower = rep(0, length(par) ),
                 # upper = rep(2, length(par) ),
                 lower = c(0, -1, 0, -1, 0),
-                upper = c(3, 2, 3, 2, 3),
+                upper = c(3, 1, 3, 1, 3),
                 verbose = TRUE
                 )
             

@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 13, 2023             #
+# Last updated on April 17, 2023             #
 ##############################################
 
 library(geomtextpath)
@@ -228,9 +228,9 @@ summary(fitting_results_EI)
 
 # using g2, 1000 simulated trials and 1000 iterations
 # best parameter estimates in IE sequences are
-# 1.0186 -0.10192 1.52759 -0.0785 2.03995 (bestvalit around 0.04736)
+# 1.01365 0.0681 1.5859 0.23909 2.18891 (bestvalit around 0.02998)
 # best parameter estimates in EE sequences are
-# 1.00645 0.10474 1.65506 0.36639 2.32876 (bestvalit around 0.04928)
+# 1.0177 -0.09605 1.80164 -0.02717 2.65605 (bestvalit around 0.05848)
 # best parameter estimates in II sequences are
 # 0.50493 -0.18265 1.84112 -0.28742 2.27325 (bestvalit around 0.03422)
 # best parameter estimates in EI sequences are
@@ -317,14 +317,14 @@ par_names <- c(
 
 estimates_summary <- data.frame(
     par_names = par_names,
-    IE = estimated_pars_IE,
-    EE = estimated_pars_EE,
+    IE = estimated_pars_IE_pso,
+    EE = estimated_pars_EE_pso,
     II = estimated_pars_II_pso,
     EI = estimated_pars_EI_pso
     ) %>%
     pivot_longer(cols = IE:EI, names_to = "condition") %>%
     mutate(error_value = rep(c(
-        fitting_results_II_pso$value, fitting_results_II_pso$value,
+        fitting_results_IE_pso$value, fitting_results_EE_pso$value,
         fitting_results_II_pso$value, fitting_results_EI_pso$value
         ), 5) ) %>%
     data.frame() %>%
@@ -346,11 +346,11 @@ sim_IE <- model(
     nsims = 1000, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_IE[2],
-    curvature_activ = estimated_pars_IE[3],
-    amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = estimated_pars_IE[4],
-    curvature_inhib = estimated_pars_IE[5]
+    peak_time_activ = estimated_pars_IE_pso[2],
+    curvature_activ = estimated_pars_IE_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_IE_pso[1],
+    peak_time_inhib = estimated_pars_IE_pso[4],
+    curvature_inhib = estimated_pars_IE_pso[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
@@ -366,14 +366,14 @@ sim_IE <- model(
 
 # simulating data with the estimated parameters
 sim_EE <- model(
-    nsims = 1000, nsamples = 2000,
+    nsims = 1000, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_EE[2],
-    curvature_activ = estimated_pars_EE[3],
-    amplitude_inhib = 1.5 / estimated_pars_EE[1],
-    peak_time_inhib = estimated_pars_EE[4],
-    curvature_inhib = estimated_pars_EE[5]
+    peak_time_activ = estimated_pars_EE_pso[2],
+    curvature_activ = estimated_pars_EE_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_EE_pso[1],
+    peak_time_inhib = estimated_pars_EE_pso[4],
+    curvature_inhib = estimated_pars_EE_pso[5]
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
@@ -389,7 +389,7 @@ sim_EE <- model(
 
 # simulating data with the estimated parameters
 sim_II <- model(
-    nsims = 1000, nsamples = 2000,
+    nsims = 1000, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_II_pso[2],
@@ -412,7 +412,7 @@ sim_II <- model(
 
 # simulating data with the estimated parameters
 sim_EI <- model(
-    nsims = 1000, nsamples = 2000,
+    nsims = 1000, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_EI_pso[2],
@@ -518,7 +518,7 @@ p4 <- sim_EI %>%
         )
 
 # combining all plots
-(p1 + p3) / (p2 + p4) # + plot_annotation(title = 'The surprising truth about mtcars')
+(p1 + p3) / (p2 + p4)
 
 # saving the plot
 ggsave(
@@ -677,18 +677,18 @@ ggsave(
 
 parameters_estimates_summary_IE <- paste(as.vector(rbind(
     paste0(par_names, ": "),
-    paste0(as.character(round(estimated_pars_IE, 3) ), "\n")
+    paste0(as.character(round(estimated_pars_IE_pso, 3) ), "\n")
     ) ), collapse = "") %>% str_sub(end = -2)
 
 p5 <- model(
-    nsims = 1e2, nsamples = 3000,
+    nsims = 100, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_IE[2],
-    curvature_activ = estimated_pars_IE[3],
-    amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = estimated_pars_IE[4],
-    curvature_inhib = estimated_pars_IE[5],
+    peak_time_activ = estimated_pars_IE_pso[2],
+    curvature_activ = estimated_pars_IE_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_IE_pso[1],
+    peak_time_inhib = estimated_pars_IE_pso[4],
+    curvature_inhib = estimated_pars_IE_pso[5],
     full_output = TRUE
     ) %>%
     pivot_longer(cols = activation:balance) %>%
@@ -729,18 +729,18 @@ p5 <- model(
 
 parameters_estimates_summary_EE <- paste(as.vector(rbind(
     paste0(par_names, ": "),
-    paste0(as.character(round(estimated_pars_EE, 3) ), "\n")
+    paste0(as.character(round(estimated_pars_EE_pso, 3) ), "\n")
     ) ), collapse = "") %>% str_sub(end = -2)
 
 p6 <- model(
-    nsims = 1e2, nsamples = 3000,
+    nsims = 100, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars_EE[2],
-    curvature_activ = estimated_pars_EE[3],
-    amplitude_inhib = 1.5 / estimated_pars_EE[1],
-    peak_time_inhib = estimated_pars_EE[4],
-    curvature_inhib = estimated_pars_EE[5],
+    peak_time_activ = estimated_pars_EE_pso[2],
+    curvature_activ = estimated_pars_EE_pso[3],
+    amplitude_inhib = 1.5 / estimated_pars_EE_pso[1],
+    peak_time_inhib = estimated_pars_EE_pso[4],
+    curvature_inhib = estimated_pars_EE_pso[5],
     full_output = TRUE
     ) %>%
     pivot_longer(cols = activation:balance) %>%
@@ -785,7 +785,7 @@ parameters_estimates_summary_II <- paste(as.vector(rbind(
     ) ), collapse = "") %>% str_sub(end = -2)
 
 p7 <- model(
-    nsims = 1e2, nsamples = 3000,
+    nsims = 100, nsamples = 3000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
     peak_time_activ = estimated_pars_II_pso[2],
@@ -896,10 +896,6 @@ p8 <- model(
 
 # combining all plots
 (p5 + p6) / (p7 + p8) +
-    # plot_annotation(
-    #     title = "Activation/inhibition patterns",
-    #     theme = theme_bw(base_size = 12, base_family = "Open Sans")
-    #     ) +
     plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # saving the plot
