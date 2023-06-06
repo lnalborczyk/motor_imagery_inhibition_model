@@ -1,0 +1,17 @@
+"par_names","condition","value","error_value"
+"amplitude_ratio","IE",3.007068,0.052577
+"amplitude_ratio","EE",3.065343,0.054071
+"amplitude_ratio","II",0.958458,0.184107
+"amplitude_ratio","EI",0.978739,0.172242
+"peak_time_activ","IE",1.067908,0.052577
+"peak_time_activ","EE",0.771801,0.054071
+"peak_time_activ","II",1.073165,0.184107
+"peak_time_activ","EI",1.092114,0.172242
+"peak_time_inhib","IE",1.124398,0.052577
+"peak_time_inhib","EE",0.900868,0.054071
+"peak_time_inhib","II",1.026163,0.184107
+"peak_time_inhib","EI",1.023844,0.172242
+"curvature_inhib","IE",1.305301,0.052577
+"curvature_inhib","EE",1.363858,0.054071
+"curvature_inhib","II",1.162669,0.184107
+"curvature_inhib","EI",1.181293,0.172242

@@ -3,11 +3,14 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on April 07, 2023             #
+# Last updated on June 6, 2023               #
 ##############################################
 
-# to compute the concordance correlation coefficient (CCC)
+# concordance correlation coefficient (CCC)
 library(DescTools)
+
+# correlation matrix
+library(GGally)
 
 # importing the data-generating model
 source(file = "model.R")
@@ -15,27 +18,68 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# true parameter values in EE sequences
-true_pars <- c(1.5, 0, 0.2, 0, 0.4)
+# true parameter values in executed trials
+# true_pars <- c(1.1, 0.5, 0.3, 1.25)
+# true_pars <- c(1.1, 0.8, 0.3)
+
+# generating plausible true parameter values
+lhs_initial_pop <- generating_initial_pop(
+    nstudies = 1,
+    action_mode = "executed",
+    par_names = c("exec_threshold", "peak_time_activ", "curvature_activ"),
+    lower_bounds = c(0.5, 0.5, 0.1),
+    upper_bounds = c(1.5, 1.5, 0.6)
+    )
+
+true_pars <- as.numeric(lhs_initial_pop)
+
+# plotting the corresponding balance function with execution and imagery thresholds
+# z <- function (
+#         time = 0,
+#         activation_amplitude = 1.5, activation_peak_time = log(true_pars[2]), activation_curvature = true_pars[4], 
+#         inhibition_amplitude = 1.5 / true_pars[1], inhibition_peak_time = log(true_pars[3] * true_pars[2]), inhibition_curvature = true_pars[5] * true_pars[4]
+#         ) {
+#     
+#     balance_output <- (activation_amplitude / inhibition_amplitude) *
+#         exp(-(log(time) - activation_peak_time)^2 / (2 * activation_curvature^2) + (log(time) - inhibition_peak_time)^2 / (2 * inhibition_curvature^2) )
+#     
+#     return (balance_output)
+#     
+# }
+# 
+# curve(
+#     expr = z,
+#     from = 0, 3,
+#     main = "Balance function",
+#     xlab = "Time (in seconds)",
+#     ylab = "Balance value (arbitrary units)"
+#     )
+# 
+# abline(h = 0.5 * true_pars[1], lty = 2)
+# abline(h = true_pars[1], lty = 2)
 
 # simulating data
 df <- model(
-    nsims = 100, nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5,
+    nsims = 200, nsamples = 3000,
+    exec_threshold = true_pars[1],
+    imag_threshold = 0.5 * true_pars[1],
     amplitude_activ = 1.5,
-    peak_time_activ = true_pars[2],
+    peak_time_activ = log(true_pars[2]),
     curvature_activ = true_pars[3],
-    amplitude_inhib = 1.5 / true_pars[1],
-    peak_time_inhib = true_pars[4],
-    curvature_inhib = true_pars[5]
+    # amplitude_inhib = 1.5 / true_pars[1],
+    # peak_time_inhib = log(true_pars[3] * true_pars[2]),
+    # curvature_inhib = true_pars[5] * true_pars[4],
+    model_version = "tmm",
+    full_output = FALSE
     ) %>%
     # was the action executed or imagined?
-    mutate(
-        action_mode = ifelse(
-            test = true_pars[1] >= 1,
-            yes = "executed", no = "imagined"
-            )
-        ) %>%
+    # mutate(
+    #     action_mode = ifelse(
+    #         test = true_pars[1] >= 1,
+    #         yes = "executed", no = "imagined"
+    #         )
+    #     ) %>%
+    mutate(action_mode = "executed") %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -50,7 +94,10 @@ df <- model(
 df %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
-    geom_density(color = "white", alpha = 0.6, show.legend = FALSE) +
+    geom_density(
+        color = "white", alpha = 0.8,
+        show.legend = TRUE
+        ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values = met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
@@ -90,50 +137,80 @@ df %>%
 
 # fitting the model using differential evolution
 # seems to work best in short periods of time
-# (error around 0.1 for 200 iterations and 0.01 for 1e3 iterations)
 # g2 and sse seem to work great (but not rmse)
-# increasing nsims to 1e3 and maxit to 500 seems to work well (error < 0.01)
-# with g2 even with 5 free parameters...
+# (error around 0.05 in 100 iterations and around 0.01 in 1000 iterations)
+# with CR = F = 0.9, now around 0.001 in 1000 iterations...
 fitting_results <- model_fitting(
-    par = c(1, 1, 1, 1, 1),
     data = df,
-    nsims = 1e3,
+    nsims = 200,
     error_function = "g2",
+    model_version = "tmm",
+    par_names = c("exec_threshold", "peak_time_activ", "curvature_activ"),
+    lower_bounds = c(0.5, 0.5, 0.1),
+    upper_bounds = c(1.5, 1.5, 0.6),
+    # model_version = "pim",
+    # lower_bounds = c(1, 0.5, 0.1, 1),
+    # upper_bounds = c(2, 1.5, 0.5, 2),
     method = "DEoptim",
-    maxit = 500
+    nstudies = 500,
+    initial_pop_while = TRUE,
+    maxit = 2000
     )
 
-# polishing the estimated parameters with a second simplex run
-fitting_results2 <- model_fitting(
-    par = as.numeric(fitting_results$optim$bestmem),
-    data = df,
-    nsims = 1e4,
-    error_function = "g2",
-    # method = "L-BFGS-B",
-    method = "optimParallel", # parallelised L-BFGS-B
-    maxit = 20
-    )
+# optimisation summary
+summary(fitting_results)
+
+# polishing the estimated parameters with a second run
+# fitting_results2 <- model_fitting(
+#     data = df,
+#     nsims = 500,
+#     error_function = "g2",
+#     method = "DEoptim",
+#     lower_bounds = apply(X = rbind(0.75 * as.numeric(fitting_results$optim$bestmem), c(1, 0.5, 0.5, 0.1, 1) ), MARGIN = 2, FUN = max),
+#     upper_bounds = apply(X = rbind(1.25 * as.numeric(fitting_results$optim$bestmem), c(2, 1.5, 2, 0.5, 2) ), MARGIN = 2, FUN = min),
+#     nstudies = 200,
+#     initial_pop_while = FALSE,
+#     maxit = 1000
+#     )
+
+# optimisation summary
+# summary(fitting_results2)
 
 # plotting the optimisation results (for DEoptim only)
 # plot(x = fitting_results, plot.type = "bestmemit", type = "b", col = "steelblue")
 # plot(x = fitting_results, plot.type = "bestvalit", type = "b", col = "steelblue")
 
+# plotting optimisation paths in parameter space
+optimisation_results <- data.frame(fitting_results$member$bestmemit) %>%
+    mutate(iteration = 1:n() )
+
+# plotting in 2D
+optimisation_results %>%
+    distinct() %>%
+    ggplot(aes(x = par1, y = par4, color = iteration) ) +
+    geom_point(show.legend = FALSE) +
+    geom_path(show.legend = FALSE) +
+    theme_bw(base_size = 10, base_family = "Open Sans")
+
+# plotting in 3D
+plot_ly(
+    data = distinct(optimisation_results),
+    x = ~par1, y = ~par2, z = ~par4
+    ) %>%
+    add_trace(type = "scatter3d", mode = "markers+lines", color = ~iteration)
+
 # getting a summary of the optimisation results
-# fitting_results$value
-# fitting_results$par
 summary(fitting_results)
 
 # retrieving estimated parameter values
-# estimated_pars <- as.numeric(fitting_results$par)
-# estimated_pars <- as.numeric(fitting_results2[1:3])
 estimated_pars <- as.numeric(fitting_results$optim$bestmem)
 
 # plotting true parameter versus estimated parameter values
 data.frame(
     # parameter = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib"),
     parameter = c(
-        "amplitude_ratio", "peak_time_activ", "curvature_activ",
-        "peak_time_inhib", "curvature_inhib"
+        "amplitude_ratio", "peak_time_activ", "peak_time_inhib",
+        "curvature_activ", "curvature_inhib"
         ),
     true_pars = true_pars,
     estimated_pars = estimated_pars
@@ -159,7 +236,7 @@ data.frame(
         nudge_x = 0.3,
         show.legend = FALSE
         ) +
-    ylim(c(0, 2) ) +
+    # ylim(c(0, 2) ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Johnson", n = 2) ) +
     scale_colour_manual(values = met.brewer(name = "Johnson", n = 2) ) +
@@ -167,14 +244,20 @@ data.frame(
 
 # plotting data simulated using the estimated parameters
 model(
-    nsims = 1e3, nsamples = 2000,
-    exec_threshold = 1, imag_threshold = 0.5,
+    nsims = 500, nsamples = 3000,
+    exec_threshold = 1,
+    imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    peak_time_activ = estimated_pars[2],
-    curvature_activ = estimated_pars[3],
-    amplitude_inhib = 1.5 / estimated_pars[1],
-    peak_time_inhib = estimated_pars[4],
-    curvature_inhib = estimated_pars[5]
+    # peak_time_activ = estimated_pars[2],
+    # curvature_activ = estimated_pars[3],
+    # amplitude_inhib = 1.5 / estimated_pars[1],
+    # peak_time_inhib = estimated_pars[4],
+    # curvature_inhib = estimated_pars[5]
+    peak_time_activ = log(true_pars[2]),
+    curvature_activ = true_pars[4],
+    amplitude_inhib = 1.5 / true_pars[1],
+    peak_time_inhib = log(true_pars[3] * true_pars[2]),
+    curvature_inhib = true_pars[5] * true_pars[4]
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -192,6 +275,9 @@ model(
         ) %>%
     distinct() %>%
     dplyr::select(-sim) %>%
+    # removing NAs or aberrant simulated data
+    na.omit() %>%
+    filter(reaction_time < 2 & movement_time < 2) %>%
     pivot_longer(cols = reaction_time:movement_time) %>%
     ggplot(aes(x = value, colour = name, fill = name) ) +
     geom_density(
@@ -217,6 +303,69 @@ model(
 #     device = "png"
 #     )
 
+# plotting the implied activation/inhibition/balance functions
+par_names <- c(
+    "amplitude_ratio", "peak_time_activ", "curvature_activ",
+    "peak_time_inhib", "curvature_inhib"
+    )
+
+parameters_estimates_summary <- paste(as.vector(rbind(
+    paste0(par_names, ": "),
+    paste0(as.character(round(estimated_pars, 3) ), "\n")
+    ) ), collapse = "") %>% str_sub(end = -2)
+
+model(
+    nsims = 500, nsamples = 3000,
+    exec_threshold = 1, imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    # peak_time_activ = estimated_pars[2],
+    # curvature_activ = estimated_pars[3],
+    # amplitude_inhib = 1.5 / estimated_pars[1],
+    # peak_time_inhib = estimated_pars[4],
+    # curvature_inhib = estimated_pars[5],
+    peak_time_activ = log(true_pars[2]),
+    curvature_activ = 1 / sqrt(6),
+    amplitude_inhib = 1.5 / true_pars[1],
+    peak_time_inhib = log(true_pars[3]),
+    curvature_inhib = 1.5 * 1 / sqrt(6),
+    full_output = TRUE
+    ) %>%
+    pivot_longer(cols = activation:balance) %>%
+    ggplot(
+        aes(
+            x = time, y = value,
+            group = interaction(sim, name),
+            colour = name
+            )
+        ) +
+    geom_hline(yintercept = 1, linetype = 2) +
+    geom_hline(yintercept = 0.5, linetype = 2) +
+    # plotting average
+    stat_summary(
+        aes(group = name, colour = name),
+        fun = "median", geom = "line",
+        linewidth = 1, alpha = 1,
+        show.legend = TRUE
+        ) +
+    # displaying estimated parameter values
+    # annotate(
+    #     geom = "label",
+    #     x = Inf, y = Inf,
+    #     hjust = 1, vjust = 1,
+    #     label = parameters_estimates_summary,
+    #     family = "Courier"
+    #     ) +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
+    scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
+    scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
+    labs(
+        title = "Latent balance function",
+        x = "Time within a trial (in seconds)",
+        y = "Activation/inhibition (a.u.)",
+        colour = "",
+        fill = ""
+        )
+
 ############################################
 # full parameter recovery study
 #######################################
@@ -227,32 +376,60 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# number of simulated "studies" to run
-nstudies <- 10
+# number of parameter sets to generate
+nstudies <- 50
+
+# action mode ("executed" or "imagined")
+# if action_mode == "imagined", should change bounds on amplitude_ratio
+action_mode <- "executed"
 
 # free parameters
-# parameters <- c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
 parameters <- c(
-    "amplitude_ratio", "peak_time_activ", "curvature_activ",
-    "peak_time_inhib", "curvature_inhib"
+    "amplitude_ratio", "peak_time",
+    "curvature_activ", "curvature_inhib"
     )
 
-# should also vary N (as in White et al., 2019)
+# importing the function generating parameter values with constraints
+source(file = "hypercube_sampling.R")
+
+# number of included (or not) parameter sets
+table(final_par_values$included)
+
+# varying the number of observed trials (as in White et al., 2019)
 # nobs <- c(50, 100, 200, 500)
 nobs <- 200
 
 # initialise results dataframe
-par_recov_results <- crossing(
-    study = rep(1:nstudies, each = length(parameters) ),
-    nobs, parameters
-    ) %>%
+# par_recov_results <- crossing(
+#     study = rep(1:nstudies, each = length(parameters) ),
+#     nobs, parameters
+#     ) %>%
+#     # adding a simulation id
+#     group_by(study, nobs) %>%
+#     mutate(study_id = cur_group_id() ) %>%
+#     ungroup() %>%
+#     # initialising empty vectors for parameter values
+#     mutate(
+#         true_pars = 0,
+#         starting_values = 0,
+#         estimated_pars = 0,
+#         final_error = 0
+#         )
+
+par_recov_results <- final_par_values %>%
+    filter(included == TRUE) %>%
+    select(amplitude_ratio:curvature_inhib) %>%
+    pivot_longer(cols = everything(), names_to = "parameters", values_to = "true_pars") %>%
+    mutate(nobs = nobs) %>%
+    mutate(study = rep(1:sum(final_par_values$included), each = 4) ) %>%
     # adding a simulation id
     group_by(study, nobs) %>%
     mutate(study_id = cur_group_id() ) %>%
     ungroup() %>%
     # initialising empty vectors for parameter values
     mutate(
-        true_pars = 0,
+        # true_pars = 0,
+        starting_values = 0,
         estimated_pars = 0,
         final_error = 0
         )
@@ -268,34 +445,44 @@ for (i in 1:max(par_recov_results$study_id) ) {
     cat("Study", i, "started.\n\n")
     
     # generating true parameter values
-    true_pars <- c(
-        runif(n = 1, min = 1.25, max = 1.75),
-        runif(n = 1, min = 0.25, max = 0.75),
-        runif(n = 1, min = 0.1, max = 0.5),
-        runif(n = 1, min = 0.25, max = 0.75),
-        runif(n = 1, min = 0.5, max = 0.9)
-        )
+    # true_pars <- c(
+    #     lhs(n = 1, rect = c(0, 1) )[1],
+    #     lhs(n = 1, rect = c(-1, 1) )[1],
+    #     lhs(n = 1, rect = c(-1, 1) )[1],
+    #     lhs(n = 1, rect = c(0, 1) )[1]
+    #     )
+    # true_pars <- c(
+    #     runif(n = 1, min = 0.5, max = 1.5),
+    #     runif(n = 1, min = -0.5, max = 0.5),
+    #     runif(n = 1, min = 0.1, max = 0.4),
+    #     runif(n = 1, min = -0.5, max = 0.5),
+    #     runif(n = 1, min = 0.4, max = 0.8)
+    #     )
+    
+    # retrieving true parameter values
+    true_pars <- par_recov_results$true_pars[par_recov_results$study_id == i]
     
     # simulating some data
     temp_df <- model(
-        # nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
-        nsims = 200,
-        nsamples = 2000,
-        exec_threshold = 1, imag_threshold = 0.5,
+        nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
+        nsamples = 3000,
+        exec_threshold = 1,
+        imag_threshold = 0.5,
         amplitude_activ = 1.5,
         peak_time_activ = true_pars[2],
         curvature_activ = true_pars[3],
         amplitude_inhib = 1.5 / true_pars[1],
-        peak_time_inhib = true_pars[4],
-        curvature_inhib = true_pars[5]
+        peak_time_inhib = true_pars[2],
+        curvature_inhib = true_pars[4] * true_pars[3]
         ) %>%
         # was the action executed or imagined?
-        mutate(
-            action_mode = ifelse(
-                test = true_pars[1] >= 1,
-                yes = "executed", no = "imagined"
-                )
-            ) %>%
+        # mutate(
+        #     action_mode = ifelse(
+        #         test = true_pars[1] >= 1,
+        #         yes = "executed", no = "imagined"
+        #         )
+        #     ) %>%
+        mutate(action_mode = action_mode) %>%
         # keeping only the relevant columns
         dplyr::select(
             sim,
@@ -306,19 +493,39 @@ for (i in 1:max(par_recov_results$study_id) ) {
         distinct() %>%
         dplyr::select(-sim)
     
+    # plotting RT and MT distributions
+    # hist(temp_df$reaction_time)
+    # hist(temp_df$movement_time)
+    
+    # generating starting values
+    starting_values <- c(
+        runif(n = 1, min = 1, max = 2),
+        runif(n = 1, min = -0.6, max = 0.4),
+        runif(n = 1, min = 0.1, max = 0.5),
+        runif(n = 1, min = 1.1, max = 2)
+        )
+    
+    # printing progress
+    cat(
+        "\nStudy", i, "started.\nTrue parameters:", true_pars,
+        "\nStarting values:", starting_values, "\n\n"
+        )
+    
     # fitting the model
     temp_fitting_results <- model_fitting(
-        # nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
-        par = c(1, 1, 1, 1, 1),
+        par = starting_values,
         data = temp_df,
-        nsims = 1e3,
+        nsims = 500,
         error_function = "g2",
         method = "DEoptim",
-        maxit = 1e3
+        maxit = 1000
         )
     
     # storing true parameter values
-    par_recov_results$true_pars[par_recov_results$study_id == i] <- true_pars
+    # par_recov_results$true_pars[par_recov_results$study_id == i] <- true_pars
+    
+    # storing starting parameter values
+    par_recov_results$starting_values[par_recov_results$study_id == i] <- starting_values
     
     # storing final parameter estimates
     par_recov_results$estimated_pars[par_recov_results$study_id == i] <-
@@ -332,7 +539,8 @@ for (i in 1:max(par_recov_results$study_id) ) {
     cat(
         "\nStudy", i, "done.\nTrue parameters:", true_pars,
         "\nEstimated parameters:",
-        as.numeric(temp_fitting_results$optim$bestmem), "\n\n"
+        as.numeric(temp_fitting_results$optim$bestmem),
+        "\nStarting values:", starting_values, "\n\n"
         )
     
 }
@@ -348,11 +556,12 @@ print(end - start)
 # saving simulation results
 save(
     par_recov_results,
-    file = "parameter_recovery/5pars_100_or_500_obs_1e3_sim_trials_1e3_DEoptim_g2.Rdata"
+    file = "parameter_recovery/4pars_200obs_500_sims_DEoptim_1000iter_g2_lhs.Rdata"
     )
 
 # loading it
-# load("parameter_recovery/3pars_100_or_500_obs_and_sim_trials_500_DEoptim_g2.Rdata")
+# load(file = "parameter_recovery/5pars_100_obs_1e3_DEoptim_g2.Rdata")
+load(file = "parameter_recovery/results/5pars_50to500obs_200then500sims_DEoptim_2000then2000iter_g2_lhs_while.Rdata")
 
 # plotting final error values
 # par_recov_results2 <- par_recov_results
@@ -361,14 +570,15 @@ hist(par_recov_results$final_error)
 unique(par_recov_results$final_error)
 
 # equally-sized ggplot2 axes in facet_wrap()
-source(file = "facet_wrap_equal.R")
+source(file = "utils/facet_wrap_equal.R")
 
 # plotting the correlation between true and estimated parameter values
 # the quality of the recovery was considered poor if correlation coefficients
 # between original and recovered parameters were below .5, fair if .5<r<.75,
 # good if.75<r<.9, and excellent if r>.9
 par_recov_results %>%
-    ggplot(aes(x = true_pars, y = estimated_pars) ) +
+    # filter(final_error != 0) %>%
+    ggplot(aes(x = true_pars, y = estimated_pars1) ) +
     geom_abline(intercept = 0, slope = 1, lty = 2) +
     geom_point(
         # aes(fill = as.factor(study) ),
@@ -385,17 +595,16 @@ par_recov_results %>%
         ) +
     # coord_fixed(xlim = c(0, 2), ylim = c(0, 2) ) +
     # coord_fixed() +
-    theme_bw(base_size = 16, base_family = "Montserrat") +
-    # facet_wrap(~parameter,  ncol = 3) +
+    theme_bw(base_size = 12, base_family = "Montserrat") +
+    # facet_wrap(~parameters,  ncol = 3) +
     # facet_wrap_equal(nobs~parameters, scales = "free", ncol = 3) +
-    facet_grid_equal(nobs~parameters) +
+    facet_grid_equal(nobs ~ parameters) +
     # facet_grid(nobs ~ parameters) +
     labs(x = "True parameter value", y = "Estimated parameter value")
 
 # saving the plot
 ggsave(
-    # filename = "figures/parameter_recovery_3pars_100trials_1000DEoptim.png",
-    filename = "figures/parameter_recovery_3pars_100obs_100_or_500_sim_trials_500DEoptim_sse.png",
+    filename = "parameter_recovery/figures/5pars_50to500obs_200then500sims_DEoptim_2000then2000iter_g2_lhs_while.png",
     width = 12, height = 8, dpi = 300,
     device = "png"
     )
@@ -403,14 +612,25 @@ ggsave(
 # computing the goodness-of-recovery statistic (cf. White et al., 2019, 10.3758/s13423-017-1271-2)
 # the normalised RMSE and the R-squared (cf. Ghaderi-Kangavari et al., 2023)
 par_recov_results %>%
+    # filter(final_error != 0) %>%
     group_by(parameters, nobs) %>%
     summarise(
-        eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ) %>%
-            round(., 3),
-        nrmse = sqrt(mean(estimated_pars - true_pars)^2) / (max(true_pars) - min(true_pars) ) %>%
-            round(., 3),
-        r2 = 1 - sum(estimated_pars - true_pars)^2 / sum(true_pars - mean(true_pars) ) %>%
-            round(., 3)
+        eta = sum(abs(estimated_pars - true_pars) / (max(true_pars) - min(true_pars) ) ),
+        ccc = CCC(x = estimated_pars, y = true_pars)$rho.c$est %>% round(., 3),
+        nrmse = sqrt(mean(estimated_pars - true_pars)^2) / (max(true_pars) - min(true_pars) ),
+        pearson_cor = cor(x = estimated_pars, y = true_pars, method = "pearson"),
+        r2 = cor(x = estimated_pars, y = true_pars, method = "pearson")^2
         ) %>%
     ungroup() %>%
+    mutate(across(eta:r2, ~ round(., 3) ) ) %>%
     data.frame()
+
+# correlation matrix between estimated parameters
+par_recov_results %>%
+    # filter(final_error != 0) %>%
+    filter(nobs == 500) %>%
+    select(study, parameters, estimated_pars) %>%
+    pivot_wider(names_from = parameters, values_from = estimated_pars) %>%
+    # data.frame()
+    ggpairs(columns = 2:6) +
+    theme_bw(base_size = 12, base_family = "Open Sans")
