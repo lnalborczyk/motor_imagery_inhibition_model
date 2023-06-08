@@ -5,7 +5,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on June 6, 2023               #
+# Last updated on June 8, 2023               #
 ##############################################
 
 generating_initial_pop <- function (
@@ -28,14 +28,6 @@ generating_initial_pop <- function (
             lhs_pars[, i] <- tgp::lhs(n = nstudies, rect = c(lower_bounds[i], upper_bounds[i]) )[, 1]
             
         }
-        
-        # generating nstudies parameter values
-        # lhs_pars <- data.frame(
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[1], upper_bounds[1]) )[, 1],
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[2], upper_bounds[2]) )[, 1],
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[3], upper_bounds[3]) )[, 1],
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[4], upper_bounds[4]) )[, 1]
-        #     )
         
         # setting columns names
         colnames(lhs_pars) <- par_names
@@ -105,7 +97,6 @@ generating_initial_pop <- function (
                 suppressWarnings(
                     balance_function(
                         amplitude_activ = 1.5,
-                        # peak_time_activ = log(.$peak_time_activ),
                         peak_time_activ = log(.$peak_time),
                         curvature_activ = .$curvature_activ,
                         amplitude_inhib = 1.5 / .$amplitude_ratio,
@@ -143,10 +134,10 @@ generating_initial_pop <- function (
             mutate(
                 included = case_when(
                     any(is.na(pick(everything() ) ) ) ~ FALSE,
-                    pick(5) < 0.1 ~ FALSE,
-                    pick(5) > 2 ~ FALSE,
-                    pick(6) < 0.1 ~ FALSE,
-                    pick(6) > 2 ~ FALSE,
+                    pick(length(par_names) + 1) < 0.1 ~ FALSE,
+                    pick(length(par_names) + 1) > 2 ~ FALSE,
+                    pick(length(par_names) + 2) < 0.1 ~ FALSE,
+                    pick(length(par_names) + 2) > 2 ~ FALSE,
                     balance_end_of_trial > 0.25 ~ FALSE,
                     .default = TRUE
                     )

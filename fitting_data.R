@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on May 23, 2023               #
+# Last updated on June 8, 2023               #
 ##############################################
 
 library(geomtextpath)
@@ -208,7 +208,7 @@ df_EI %>%
 #         x = "Reaction time (in seconds)",
 #         y = "Movemnt time (in seconds)"
 #         )
-
+# 
 # saving the plot
 # ggsave(
 #     filename = "fitting_results/rt_mt.png",
@@ -273,25 +273,18 @@ source(file = "model.R")
 # importing the model fitting routines
 source(file = "fitting.R")
 
-# fitting the model using differential evolution
+# fitting the TMM using differential evolution
 fitting_results_IE <- model_fitting(
     data = df_IE,
     nsims = 200,
     error_function = "g2",
     method = "DEoptim",
-    lower_bounds = c(1, 0.5, 0.5, 0.1, 1),
-    upper_bounds = c(2, 1.5, 2, 0.5, 1.5),
-    maxit = 2000
-    )
-
-# polishing the estimated parameters with a second run
-fitting_results_IE2 <- model_fitting(
-    data = df_IE,
-    nsims = 500,
-    error_function = "g2",
-    method = "DEoptim",
-    lower_bounds = apply(X = rbind(0.75 * as.numeric(fitting_results_IE$optim$bestmem), c(1, 0.5, 0.5, 0.1, 1) ), MARGIN = 2, FUN = max),
-    upper_bounds = apply(X = rbind(1.25 * as.numeric(fitting_results_IE$optim$bestmem), c(2, 1.5, 2, 0.5, 1.5) ), MARGIN = 2, FUN = min),
+    model_version = "tmm",
+    par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    lower_bounds = c(0, 0.5, 0, 0),
+    upper_bounds = c(2, 1.5, 1, 1),
+    nstudies = 200,
+    initial_pop_while = TRUE,
     maxit = 1000
     )
 
@@ -300,8 +293,12 @@ fitting_results_EE <- model_fitting(
     nsims = 200,
     error_function = "g2",
     method = "DEoptim",
-    lower_bounds = c(0.25, 0.5, 0.5, 1),
-    upper_bounds = c(4, 1.5, 2.0, 3),
+    model_version = "tmm",
+    par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    lower_bounds = c(0, 0.5, 0, 0),
+    upper_bounds = c(2, 1.5, 1, 1),
+    nstudies = 200,
+    initial_pop_while = TRUE,
     maxit = 1000
     )
 
@@ -310,9 +307,13 @@ fitting_results_II <- model_fitting(
     nsims = 200,
     error_function = "g2",
     method = "DEoptim",
-    lower_bounds = c(0, 0.5, 0.5, 0.1, 1),
-    upper_bounds = c(1, 1.5, 2, 0.5, 2),
-    maxit = 200
+    model_version = "tmm",
+    par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    lower_bounds = c(0, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 1000
     )
 
 fitting_results_EI <- model_fitting(
@@ -320,9 +321,70 @@ fitting_results_EI <- model_fitting(
     nsims = 200,
     error_function = "g2",
     method = "DEoptim",
-    lower_bounds = c(0.25, 0.5, 0.5, 1),
-    upper_bounds = c(4, 1.5, 2.0, 3),
+    model_version = "tmm",
+    par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    lower_bounds = c(0, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
     maxit = 1000
+    )
+
+# fitting the TMM using differential evolution
+fitting_results_IE <- model_fitting(
+    data = df_IE,
+    nsims = 200,
+    error_function = "g2",
+    method = "DEoptim",
+    model_version = "pim",
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 100
+    )
+
+fitting_results_EE <- model_fitting(
+    data = df_EE,
+    nsims = 200,
+    error_function = "g2",
+    method = "DEoptim",
+    model_version = "pim",
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 100
+    )
+
+fitting_results_II <- model_fitting(
+    data = df_II,
+    nsims = 200,
+    error_function = "g2",
+    method = "DEoptim",
+    model_version = "pim",
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 100
+    )
+
+fitting_results_EI <- model_fitting(
+    data = df_EI,
+    nsims = 200,
+    error_function = "g2",
+    method = "DEoptim",
+    model_version = "pim",
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 100
     )
 
 # getting a summary of the optimisation results
@@ -357,19 +419,18 @@ estimated_pars_II <- as.numeric(fitting_results_II$optim$bestmem)
 estimated_pars_EI <- as.numeric(fitting_results_EI$optim$bestmem)
 
 # polishing the estimated parameters with an additional simplex run
-fitting_results_IE_polished <- model_fitting(
-    par = as.numeric(estimated_pars_IE),
-    data = df_IE,
-    nsims = 1e4,
-    error_function = "g2",
-    method = "optimParallel",
-    maxit = 50
-    )
+# fitting_results_IE_polished <- model_fitting(
+#     par = as.numeric(estimated_pars_IE),
+#     data = df_IE,
+#     nsims = 1e4,
+#     error_function = "g2",
+#     method = "optimParallel",
+#     maxit = 50
+#     )
 
 # putting everything in a table
-par_names <- c(
-    "amplitude_ratio", "peak_time_activ", "peak_time_inhib", "curvature_inhib"
-    )
+# par_names <- c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),,
+par_names <- c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib")
 
 estimates_summary <- data.frame(
     par_names = par_names,
@@ -389,7 +450,8 @@ estimates_summary <- data.frame(
 # exporting it as a csv file
 write.csv(
     x = estimates_summary,
-    file = "fitting_results/bart_et_al_2020/parameter_estimates_bart_et_al_2020_4pars_fixed_curvature_activ.csv",
+    # file = "fitting_results/bart_et_al_2020/parameter_estimates_bart_et_al_2020_4pars_tmm.csv",
+    file = "fitting_results/bart_et_al_2020/parameter_estimates_bart_et_al_2020_4pars_pim.csv",
     row.names = FALSE
     )
 
@@ -400,19 +462,24 @@ write.csv(
 # simulating implied distribution of RTs and MTs using the estimated parameters
 sim_IE <- model(
     nsims = 1000, nsamples = 3000,
-    exec_threshold = 1,
-    imag_threshold = 0.5,
-    amplitude_activ = 1.5,
-    # peak_time_activ = estimated_pars_IE[2],
-    # curvature_activ = estimated_pars_IE[3],
+    # exec_threshold = 1,
+    # imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_IE[2]),
+    # curvature_activ = estimated_pars_IE[4],
     # amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    # peak_time_inhib = estimated_pars_IE[4],
-    # curvature_inhib = estimated_pars_IE[5]
+    # peak_time_inhib = log(estimated_pars_IE[3] * estimated_pars_IE[2]),
+    # curvature_inhib = estimated_pars_IE[5] * estimated_pars_IE[4]
+    exec_threshold = estimated_pars_IE[4] * estimated_pars_IE[1],
+    imag_threshold = 0.5 * estimated_pars_IE[4],
+    amplitude_activ = estimated_pars_IE[1], # true_pars[1],
     peak_time_activ = log(estimated_pars_IE[2]),
-    curvature_activ = estimated_pars_IE[4],
-    amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = log(estimated_pars_IE[3] * estimated_pars_IE[2]),
-    curvature_inhib = estimated_pars_IE[5] * estimated_pars_IE[4]
+    curvature_activ = estimated_pars_IE[3],
+    # amplitude_inhib = 1.5 / true_pars[1],
+    # peak_time_inhib = log(true_pars[3] * true_pars[2]),
+    # curvature_inhib = true_pars[5] * true_pars[4],
+    model_version = "tmm",
+    full_output = FALSE
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
@@ -429,14 +496,21 @@ sim_IE <- model(
 # simulating data with the estimated parameters
 sim_EE <- model(
     nsims = 1000, nsamples = 3000,
-    exec_threshold = 1,
-    imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1,
+    # imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_EE[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_EE[1],
+    # peak_time_inhib = log(estimated_pars_EE[3] * estimated_pars_EE[2]),
+    # curvature_inhib = estimated_pars_EE[4] * 0.2
+    exec_threshold = estimated_pars_EE[4] * estimated_pars_EE[1],
+    imag_threshold = 0.5 * estimated_pars_EE[4] * estimated_pars_EE[1],
+    amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = log(estimated_pars_EE[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_EE[1],
-    peak_time_inhib = log(estimated_pars_EE[3] * estimated_pars_EE[2]),
-    curvature_inhib = estimated_pars_EE[4] * 0.2
+    curvature_activ = estimated_pars_EE[3],
+    model_version = "tmm",
+    full_output = FALSE
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "executed") %>%
@@ -453,13 +527,20 @@ sim_EE <- model(
 # simulating data with the estimated parameters
 sim_II <- model(
     nsims = 1000, nsamples = 3000,
-    exec_threshold = 1,
-    imag_threshold = 0.5,
+    # exec_threshold = 1,
+    # imag_threshold = 0.5,
+    # peak_time_activ = log(estimated_pars_II[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_II[1],
+    # peak_time_inhib = log(estimated_pars_II[3] * estimated_pars_II[2]),
+    # curvature_inhib = estimated_pars_II[4] * 0.2
+    exec_threshold = estimated_pars_II[4] * estimated_pars_II[1],
+    imag_threshold = 0.5 * estimated_pars_II[4] * estimated_pars_II[1],
+    amplitude_activ = estimated_pars_II[1],
     peak_time_activ = log(estimated_pars_II[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_II[1],
-    peak_time_inhib = log(estimated_pars_II[3] * estimated_pars_II[2]),
-    curvature_inhib = estimated_pars_II[4] * 0.2
+    curvature_activ = estimated_pars_II[3],
+    model_version = "tmm",
+    full_output = FALSE
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "imagined") %>%
@@ -476,14 +557,21 @@ sim_II <- model(
 # simulating data with the estimated parameters
 sim_EI <- model(
     nsims = 1000, nsamples = 3000,
-    exec_threshold = 1,
-    imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1,
+    # imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_EI[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_EI[1],
+    # peak_time_inhib = log(estimated_pars_EI[3] * estimated_pars_EI[2]),
+    # curvature_inhib = estimated_pars_EI[4] * 0.2
+    exec_threshold = estimated_pars_EI[4] * estimated_pars_EI[1],
+    imag_threshold = 0.5 * estimated_pars_EI[4] * estimated_pars_EI[1],
+    amplitude_activ = estimated_pars_EI[1],
     peak_time_activ = log(estimated_pars_EI[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_EI[1],
-    peak_time_inhib = log(estimated_pars_EI[3] * estimated_pars_EI[2]),
-    curvature_inhib = estimated_pars_EI[4] * 0.2
+    curvature_activ = estimated_pars_EI[3],
+    model_version = "tmm",
+    full_output = FALSE
     ) %>%
     # was the action executed or imagined?
     mutate(action_mode = "imagined") %>%
@@ -498,10 +586,10 @@ sim_EI <- model(
     dplyr::select(-sim)
 
 # plotting the distributions of RTs and MTs
-sim_IE %>%
+p1 <- sim_IE %>%
     # removing NAs or aberrant simulated data
     na.omit() %>%
-    filter(reaction_time < 3 & movement_time < 3) %>%
+    # filter(reaction_time < 3 & movement_time < 3) %>%
     # number of remaining trials
     # nrow()
     # or removing data using the same rule as in Bart et al. (2020)
@@ -657,11 +745,11 @@ p4 <- sim_EI %>%
 (p1 + p2) / (p3 + p4)
 
 # saving the plot
-ggsave(
-    filename = "fitting_results/bart_et_al_2020/predictive_checks_bart_et_al_2020_4pars_fixed_curvature_activ.png",
-    width = 12, height = 8, dpi = 300,
-    device = "png"
-    )
+# ggsave(
+#     filename = "fitting_results/bart_et_al_2020/predictive_checks_bart_et_al_2020_4pars_fixed_curvature_activ.png",
+#     width = 12, height = 8, dpi = 300,
+#     device = "png"
+#     )
 
 ##############################################################################
 # checking observed and predicted (simulated) quantiles
@@ -796,15 +884,17 @@ qq_ei <- bind_rows(
     plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # saving the plot
-ggsave(
-    filename = "fitting_results/bart_et_al_2020/quantile_plot_bart_et_al_2020_4pars_fixed_curvature_activ.png",
-    width = 16, height = 10, dpi = 300,
-    device = "png"
-    )
+# ggsave(
+#     filename = "fitting_results/bart_et_al_2020/quantile_plot_bart_et_al_2020_4pars_fixed_curvature_activ.png",
+#     width = 16, height = 10, dpi = 300,
+#     device = "png"
+#     )
 
 #################################################################
 # plotting the implied balance functions per condition
 ###########################################################
+
+par_names <- c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold")
 
 parameters_estimates_summary_IE <- paste(as.vector(rbind(
     paste0(par_names, ": "),
@@ -813,16 +903,24 @@ parameters_estimates_summary_IE <- paste(as.vector(rbind(
 
 p5 <- model(
     nsims = 500, nsamples = 3000,
-    exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1, imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_IE[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_IE[1],
+    # peak_time_inhib = log(estimated_pars_IE[3] * estimated_pars_IE[2]),
+    # curvature_inhib = estimated_pars_IE[4] * 0.2,
+    # full_output = TRUE
+    exec_threshold = estimated_pars_IE[4] * estimated_pars_IE[1],
+    imag_threshold = 0.5 * estimated_pars_IE[4] * estimated_pars_IE[1],
+    amplitude_activ = estimated_pars_IE[1],
     peak_time_activ = log(estimated_pars_IE[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_IE[1],
-    peak_time_inhib = log(estimated_pars_IE[3] * estimated_pars_IE[2]),
-    curvature_inhib = estimated_pars_IE[4] * 0.2,
+    curvature_activ = estimated_pars_IE[3],
+    model_version = "tmm",
     full_output = TRUE
     ) %>%
-    pivot_longer(cols = activation:balance) %>%
+    # pivot_longer(cols = activation:balance) %>%
+    pivot_longer(cols = activation) %>%
     ggplot(
         aes(
             x = time, y = value,
@@ -830,14 +928,20 @@ p5 <- model(
             colour = name
             )
         ) +
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.5, linetype = 2) +
+    geom_hline(
+        yintercept = estimated_pars_IE[4] * estimated_pars_IE[1],
+        linetype = 2
+        ) +
+    geom_hline(
+        yintercept = 0.5 * estimated_pars_IE[4] * estimated_pars_IE[1],
+        linetype = 2
+        ) +
     # plotting average
     stat_summary(
         aes(group = name, colour = name),
         fun = "median", geom = "line",
         linewidth = 1, alpha = 1,
-        show.legend = TRUE
+        show.legend = FALSE
         ) +
     # displaying estimated parameter values
     annotate(
@@ -865,16 +969,23 @@ parameters_estimates_summary_EE <- paste(as.vector(rbind(
 
 p6 <- model(
     nsims = 500, nsamples = 3000,
-    exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1, imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_EE[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_EE[1],
+    # peak_time_inhib = log(estimated_pars_EE[3] * estimated_pars_EE[2]),
+    # curvature_inhib = estimated_pars_EE[4] * 0.2,
+    # full_output = TRUE
+    exec_threshold = estimated_pars_EE[4] * estimated_pars_EE[1],
+    imag_threshold = 0.5 * estimated_pars_EE[4] * estimated_pars_EE[1],
+    amplitude_activ = estimated_pars_EE[1],
     peak_time_activ = log(estimated_pars_EE[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_EE[1],
-    peak_time_inhib = log(estimated_pars_EE[3] * estimated_pars_EE[2]),
-    curvature_inhib = estimated_pars_EE[4] * 0.2,
+    curvature_activ = estimated_pars_EE[3],
+    model_version = "tmm",
     full_output = TRUE
     ) %>%
-    pivot_longer(cols = activation:balance) %>%
+    pivot_longer(cols = activation) %>%
     ggplot(
         aes(
             x = time, y = value,
@@ -882,14 +993,20 @@ p6 <- model(
             colour = name
             )
         ) +
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.5, linetype = 2) +
+    geom_hline(
+        yintercept = estimated_pars_EE[4] * estimated_pars_EE[1],
+        linetype = 2
+        ) +
+    geom_hline(
+        yintercept = 0.5 * estimated_pars_EE[4] * estimated_pars_EE[1],
+        linetype = 2
+        ) +
     # plotting average
     stat_summary(
         aes(group = name, colour = name),
         fun = "median", geom = "line",
         linewidth = 1, alpha = 1,
-        show.legend = TRUE
+        show.legend = FALSE
         ) +
     # displaying estimated parameter values
     annotate(
@@ -917,16 +1034,24 @@ parameters_estimates_summary_II <- paste(as.vector(rbind(
 
 p7 <- model(
     nsims = 500, nsamples = 3000,
-    exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1, imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_II[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_II[1],
+    # peak_time_inhib = log(estimated_pars_II[3] * estimated_pars_II[2]),
+    # curvature_inhib = estimated_pars_II[4] * 0.2,
+    # full_output = TRUE
+    exec_threshold = estimated_pars_II[4] * estimated_pars_II[1],
+    imag_threshold = 0.5 * estimated_pars_II[4] * estimated_pars_II[1],
+    amplitude_activ = estimated_pars_II[1],
     peak_time_activ = log(estimated_pars_II[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_II[1],
-    peak_time_inhib = log(estimated_pars_II[3] * estimated_pars_II[2]),
-    curvature_inhib = estimated_pars_II[4] * 0.2,
+    curvature_activ = estimated_pars_II[3],
+    model_version = "tmm",
     full_output = TRUE
     ) %>%
-    pivot_longer(cols = activation:balance) %>%
+    # pivot_longer(cols = activation:balance) %>%
+    pivot_longer(cols = activation) %>%
     ggplot(
         aes(
             x = time, y = value,
@@ -934,14 +1059,20 @@ p7 <- model(
             colour = name
             )
         ) +
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.5, linetype = 2) +
+    geom_hline(
+        yintercept = estimated_pars_II[4] * estimated_pars_II[1],
+        linetype = 2
+        ) +
+    geom_hline(
+        yintercept = 0.5 * estimated_pars_II[4] * estimated_pars_II[1],
+        linetype = 2
+        ) +
     # plotting average
     stat_summary(
         aes(group = name, colour = name),
         fun = "median", geom = "line",
         linewidth = 1, alpha = 1,
-        show.legend = TRUE
+        show.legend = FALSE
         ) +
     # displaying estimated parameter values
     annotate(
@@ -969,16 +1100,23 @@ parameters_estimates_summary_EI <- paste(as.vector(rbind(
 
 p8 <- model(
     nsims = 500, nsamples = 3000,
-    exec_threshold = 1, imag_threshold = 0.5,
-    amplitude_activ = 1.5,
+    # exec_threshold = 1, imag_threshold = 0.5,
+    # amplitude_activ = 1.5,
+    # peak_time_activ = log(estimated_pars_EI[2]),
+    # curvature_activ = 0.2,
+    # amplitude_inhib = 1.5 / estimated_pars_EI[1],
+    # peak_time_inhib = log(estimated_pars_EI[3] * estimated_pars_EI[2]),
+    # curvature_inhib = estimated_pars_EI[4] * 0.2,
+    # full_output = TRUE
+    exec_threshold = estimated_pars_EI[4] * estimated_pars_EI[1],
+    imag_threshold = 0.5 * estimated_pars_EI[4] * estimated_pars_EI[1],
+    amplitude_activ = estimated_pars_EI[1],
     peak_time_activ = log(estimated_pars_EI[2]),
-    curvature_activ = 0.2,
-    amplitude_inhib = 1.5 / estimated_pars_EI[1],
-    peak_time_inhib = log(estimated_pars_EI[3] * estimated_pars_EI[2]),
-    curvature_inhib = estimated_pars_EI[4] * 0.2,
+    curvature_activ = estimated_pars_EI[3],
+    model_version = "tmm",
     full_output = TRUE
     ) %>%
-    pivot_longer(cols = activation:balance) %>%
+    pivot_longer(cols = activation) %>%
     ggplot(
         aes(
             x = time, y = value,
@@ -987,8 +1125,14 @@ p8 <- model(
             )
         ) +
     # plotting the motor execution and motor imagery thresholds
-    geom_hline(yintercept = 1, linetype = 2) +
-    geom_hline(yintercept = 0.5, linetype = 2) +
+    geom_hline(
+        yintercept = estimated_pars_EI[4] * estimated_pars_EI[1],
+        linetype = 2
+        ) +
+    geom_hline(
+        yintercept = 0.5 * estimated_pars_EI[4] * estimated_pars_EI[1],
+        linetype = 2
+        ) +
     # geom_texthline(
     #     yintercept = 1, linetype = 2,
     #     hjust = 0.9,
@@ -1004,7 +1148,7 @@ p8 <- model(
         aes(group = name, colour = name),
         fun = "median", geom = "line",
         linewidth = 1, alpha = 1,
-        show.legend = TRUE
+        show.legend = FALSE
         ) +
     # displaying estimated parameter values
     annotate(
@@ -1030,33 +1174,8 @@ p8 <- model(
     plot_layout(guides = "collect") & theme(legend.position = "bottom")
 
 # saving the plot
-ggsave(
-    filename = "fitting_results/bart_et_al_2020/balance_function_per_condition_bart_et_al_2020_4pars_fixed_curvature_activ.png",
-    width = 16, height = 10, dpi = 300,
-    device = "png"
-    )
-
-# PPCS: median RT and median MT
-# defining a function to compute the predicted RT and MT (quadratic formula)
-onset_offset <- function (alpha_f, alpha_g, mu_f, mu_g, sigma_f, sigma_g, thresh) {
-    
-    a <- sigma_g^2 - sigma_f^2
-    b <- 2 * (sigma_f^2 * mu_g - sigma_g^2 * mu_f)
-    c <- sigma_f^2 * mu_g^2 - sigma_g^2 * mu_f^2 - 2 * sigma_f^2 * sigma_g^2 * (log(alpha_f / alpha_g) - log(thresh) )
-    onset <- exp((-b - sqrt(b^2 - 4 * a * c) ) / (2 * a) )
-    offset <- exp((-b + sqrt(b^2 - 4 * a * c) ) / (2 * a) )
-    
-    return (c(onset, offset) )
-    
-}
-
-onset_offset_imag_IE <- onset_offset(
-    alpha_f = 1.5, alpha_g = 1.5 / estimated_pars_IE[1],
-    mu_f = log(estimated_pars_IE[2]), mu_g = log(estimated_pars_IE[3] * estimated_pars_IE[2]),
-    sigma_f = 0.2, sigma_g = estimated_pars_IE[4] * 0.2,
-    thresh = 0.5
-    )
-
-c(min(onset_offset_imag_IE), max(onset_offset_imag_IE) - min(onset_offset_imag_IE) )
-median(df_IE$reaction_time)
-median(df_IE$movement_time)
+# ggsave(
+#     filename = "fitting_results/bart_et_al_2020/activation_function_per_condition_tmm.png",
+#     width = 16, height = 10, dpi = 300,
+#     device = "png"
+#     )

@@ -5,7 +5,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on June 6, 2023               #
+# Last updated on June 8, 2023               #
 ##############################################
 
 generating_initial_pop <- function (
@@ -22,19 +22,12 @@ generating_initial_pop <- function (
         # initialising an empty dataframe
         lhs_pars <- data.frame(matrix(data = NA, nrow = nstudies, ncol = length(lower_bounds) ) )
         
-        # populating it with hypercube samples
+        # populating it with nstudies hypercube samples
         for (i in 1:length(lower_bounds) ) {
             
             lhs_pars[, i] <- tgp::lhs(n = nstudies, rect = c(lower_bounds[i], upper_bounds[i]) )[, 1]
             
         }
-        
-        # generating nstudies parameter values
-        # lhs_pars <- data.frame(
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[1], upper_bounds[1]) )[, 1],
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[2], upper_bounds[2]) )[, 1],
-        #     tgp::lhs(n = nstudies, rect = c(lower_bounds[3], upper_bounds[3]) )[, 1]
-        #     )
         
         # setting columns names
         colnames(lhs_pars) <- par_names
@@ -61,7 +54,10 @@ generating_initial_pop <- function (
             peak_time_sim <- rnorm(n = 1, mean = peak_time, sd = 0.01)
             curvature_sim <- rnorm(n = 1, mean = curvature, sd = 0.01)
             exec_threshold_sim <- rnorm(n = 1, mean = exec_threshold, sd = 0.01)
-            imag_threshold_sim <- rnorm(n = 1, mean = imag_threshold, sd = 0.01)
+            
+            # # no variability in the motor imagery threshold
+            # imag_threshold_sim <- rnorm(n = 1, mean = imag_threshold, sd = 0.01)
+            imag_threshold_sim <- imag_threshold
             
             # computing the predicted RT and MT in imagery
             onset_offset_imag <- onset_offset(
@@ -96,9 +92,9 @@ generating_initial_pop <- function (
             do(
                 suppressWarnings(
                     activation_function(
-                        exec_threshold = .$exec_threshold,
-                        imag_threshold = 0.5 * .$exec_threshold,
-                        amplitude = 1.5, # .$amplitude_activ,
+                        exec_threshold = .$exec_threshold * .$amplitude_activ,
+                        imag_threshold = 0.5 * .$exec_threshold * .$amplitude_activ,
+                        amplitude = .$amplitude_activ,
                         peak_time = log(.$peak_time_activ),
                         curvature = .$curvature_activ
                         )
@@ -120,21 +116,21 @@ generating_initial_pop <- function (
         # predicted RT/MT should be valid (not a NaN)
         # predicted RT should be be between 0.2 and 1 seconds
         # predicted MT should be be between 0.2 and 2 seconds
-        # balance at the end of the trial should come back to zero
+        # balance at the end of the trial should come back close to zero
         final_par_values <- bind_cols(lhs_pars, predicted_rt_mt) %>%
             rowwise() %>%
             mutate(
-                balance_end_of_trial = 1.5 *
+                balance_end_of_trial = amplitude_activ *
                     exp(-(log(3) - peak_time_activ)^2 / (2 * curvature_activ^2) )
                 ) %>%
             mutate(
                 included = case_when(
                     any(is.na(pick(everything() ) ) ) ~ FALSE,
-                    pick(5) < 0.1 ~ FALSE,
-                    pick(5) > 2 ~ FALSE,
-                    pick(6) < 0.1 ~ FALSE,
-                    pick(6) > 2 ~ FALSE,
-                    balance_end_of_trial > 0.25 ~ FALSE,
+                    pick(length(par_names) + 1) < 0.1 ~ FALSE,
+                    pick(length(par_names) + 1) > 2 ~ FALSE,
+                    pick(length(par_names) + 2) < 0.1 ~ FALSE,
+                    pick(length(par_names) + 2) > 2 ~ FALSE,
+                    # balance_end_of_trial >= 0.25 * exec_threshold * amplitude_activ ~ FALSE,
                     .default = TRUE
                     )
                 )

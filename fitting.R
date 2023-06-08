@@ -3,7 +3,7 @@
 # ----------------------------------------- #
 # Written by Ladislas Nalborczyk            #
 # E-mail: ladislas.nalborczyk@gmail.com     #
-# Last updated on June 6, 2023              #
+# Last updated on June 7, 2023              #
 #############################################
 
 library(optimParallel) # parallelised simplex (L-BFGS-B)
@@ -30,21 +30,21 @@ loss_function <- function (
     # what version of the model?
     if (model_version == "tmm") {
         
-        # retrieving parameter values for the execution threshold
-        exec_threshold <- par[[1]]
-        
-        # defines imagery threshold relative to execution threshold
-        imag_threshold <- imag_threshold * exec_threshold
-        
-        # the relative imagery threshold could be learned as well
-        # imag_threshold <- par[[4]] * exec_threshold
-        
         # setting an arbitrary value for the amplitude of the activation function
-        amplitude_activ <- 1.5 # par[[2]]
+        amplitude_activ <- par[[1]]
         
         # retrieving parameter values for the activation function
         peak_time_activ <- log(par[[2]])
         curvature_activ <- par[[3]]
+        
+        # retrieving parameter values for the execution threshold
+        exec_threshold <- par[[4]] * amplitude_activ
+        
+        # defining imagery threshold relative to execution threshold
+        imag_threshold <- imag_threshold * exec_threshold
+        
+        # the relative imagery threshold could be learned as well
+        # imag_threshold <- par[[4]] * exec_threshold
         
         ################################################################################
         # adding some constraints
@@ -77,9 +77,11 @@ loss_function <- function (
             amplitude_sim <- rnorm(n = 1, mean = amplitude, sd = 0.01)
             peak_time_sim <- rnorm(n = 1, mean = peak_time, sd = 0.01)
             curvature_sim <- rnorm(n = 1, mean = curvature, sd = 0.01)
-            
             exec_threshold_sim <- rnorm(n = 1, mean = exec_threshold, sd = 0.01)
-            imag_threshold_sim <- rnorm(n = 1, mean = imag_threshold, sd = 0.01)
+            
+            # no variability in the motor imagery threshold
+            # imag_threshold_sim <- rnorm(n = 1, mean = imag_threshold, sd = 0.01)
+            imag_threshold_sim <- imag_threshold
             
             # computing the predicted RT and MT in imagery
             onset_offset_imag <- onset_offset(
@@ -151,7 +153,7 @@ loss_function <- function (
             prediction_error <- Inf
             return (prediction_error)
             
-        } else if (balance_end_of_trial >= 0.25) {
+        } else if (balance_end_of_trial >= 0.5 * imag_threshold) {
             
             prediction_error <- Inf
             return (prediction_error)
@@ -524,7 +526,8 @@ loss_function <- function (
 model_fitting <- function (
         par, data,
         nsims = NULL,
-        par_names, lower_bounds, upper_bounds,
+        par_names = NULL,
+        lower_bounds, upper_bounds,
         nstudies = 200, initial_pop_while = FALSE,
         error_function, model_version,
         method = c(

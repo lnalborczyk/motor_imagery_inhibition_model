@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on June 6, 2023               #
+# Last updated on June 8, 2023               #
 ##############################################
 
 # concordance correlation coefficient (CCC)
@@ -22,16 +22,25 @@ source(file = "fitting.R")
 # true_pars <- c(1.1, 0.5, 0.3, 1.25)
 # true_pars <- c(1.1, 0.8, 0.3)
 
-# generating plausible true parameter values
-lhs_initial_pop <- generating_initial_pop(
+# importing script to generate plausible parameter values
+# source (file = "utils/hypercube_sampling_while_tmm.R")
+source (file = "utils/hypercube_sampling_while_pim.R")
+
+# generating plausible parameter values
+lhs_initial_pars <- generating_initial_pop(
     nstudies = 1,
     action_mode = "executed",
-    par_names = c("exec_threshold", "peak_time_activ", "curvature_activ"),
-    lower_bounds = c(0.5, 0.5, 0.1),
-    upper_bounds = c(1.5, 1.5, 0.6)
+    # TMM
+    # par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    # lower_bounds = c(0, 0.5, 0, 0),
+    # upper_bounds = c(2, 1.5, 1, 1)
+    # PIM
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2)
     )
 
-true_pars <- as.numeric(lhs_initial_pop)
+true_pars <- as.numeric(lhs_initial_pars)
 
 # plotting the corresponding balance function with execution and imagery thresholds
 # z <- function (
@@ -58,28 +67,25 @@ true_pars <- as.numeric(lhs_initial_pop)
 # abline(h = 0.5 * true_pars[1], lty = 2)
 # abline(h = true_pars[1], lty = 2)
 
-# simulating data
+# simulating data (TMM)
 df <- model(
     nsims = 200, nsamples = 3000,
-    exec_threshold = true_pars[1],
-    imag_threshold = 0.5 * true_pars[1],
-    amplitude_activ = 1.5,
+    exec_threshold = true_pars[4] * true_pars[1],
+    imag_threshold = 0.5 * true_pars[4] * true_pars[1],
+    amplitude_activ = true_pars[1],
     peak_time_activ = log(true_pars[2]),
     curvature_activ = true_pars[3],
-    # amplitude_inhib = 1.5 / true_pars[1],
-    # peak_time_inhib = log(true_pars[3] * true_pars[2]),
-    # curvature_inhib = true_pars[5] * true_pars[4],
     model_version = "tmm",
     full_output = FALSE
     ) %>%
     # was the action executed or imagined?
-    # mutate(
-    #     action_mode = ifelse(
-    #         test = true_pars[1] >= 1,
-    #         yes = "executed", no = "imagined"
-    #         )
-    #     ) %>%
-    mutate(action_mode = "executed") %>%
+    mutate(
+        action_mode = ifelse(
+            test = true_pars[4] < 1,
+            yes = "executed", no = "imagined"
+            )
+        ) %>%
+    # mutate(action_mode = "executed") %>%
     # keeping only the relevant columns
     dplyr::select(
         sim,
@@ -87,6 +93,38 @@ df <- model(
         movement_time = paste0("mt_", substr(unique(.$action_mode), 1, 4) ),
         action_mode
         ) %>%
+    distinct() %>%
+    dplyr::select(-sim)
+
+# simulating data (PIM)
+df <- model(
+    nsims = 200, nsamples = 3000,
+    exec_threshold = 1,
+    imag_threshold = 0.5,
+    amplitude_activ = 1.5,
+    peak_time_activ = log(true_pars[2]),
+    curvature_activ = true_pars[3],
+    amplitude_inhib = 1.5 / true_pars[1],
+    peak_time_inhib = log(true_pars[2]),
+    curvature_inhib = true_pars[4] * true_pars[3],
+    model_version = "pim",
+    full_output = FALSE
+    ) %>%
+    # was the action executed or imagined?
+    mutate(
+        action_mode = ifelse(
+            test = true_pars[1] >= 1,
+            yes = "executed", no = "imagined"
+            )
+        ) %>%
+    # mutate(action_mode = "executed") %>%
+    # keeping only the relevant columns
+    dplyr::select(
+        sim,
+        reaction_time = paste0("onset_", substr(unique(.$action_mode), 1, 4) ),
+        movement_time = paste0("mt_", substr(unique(.$action_mode), 1, 4) ),
+        action_mode
+    ) %>%
     distinct() %>%
     dplyr::select(-sim)
 
@@ -135,7 +173,7 @@ df %>%
 #     method = "hydroPSO", maxit = 1e3
 #     )
 
-# fitting the model using differential evolution
+# fitting the TMM using differential evolution
 # seems to work best in short periods of time
 # g2 and sse seem to work great (but not rmse)
 # (error around 0.05 in 100 iterations and around 0.01 in 1000 iterations)
@@ -144,21 +182,33 @@ fitting_results <- model_fitting(
     data = df,
     nsims = 200,
     error_function = "g2",
-    model_version = "tmm",
-    par_names = c("exec_threshold", "peak_time_activ", "curvature_activ"),
-    lower_bounds = c(0.5, 0.5, 0.1),
-    upper_bounds = c(1.5, 1.5, 0.6),
-    # model_version = "pim",
-    # lower_bounds = c(1, 0.5, 0.1, 1),
-    # upper_bounds = c(2, 1.5, 0.5, 2),
     method = "DEoptim",
-    nstudies = 500,
+    model_version = "tmm",
+    par_names = c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold"),
+    lower_bounds = c(0, 0.5, 0, 0),
+    upper_bounds = c(2, 1.5, 1, 1),
+    nstudies = 200,
     initial_pop_while = TRUE,
-    maxit = 2000
+    maxit = 100
     )
 
 # optimisation summary
 summary(fitting_results)
+
+# fitting the PIM using differential evolution
+fitting_results <- model_fitting(
+    data = df,
+    nsims = 200,
+    error_function = "g2",
+    method = "DEoptim",
+    model_version = "pim",
+    par_names = c("amplitude_ratio", "peak_time", "curvature_activ", "curvature_inhib"),
+    lower_bounds = c(1, 0.5, 0.1, 1),
+    upper_bounds = c(2, 1.5, 0.6, 2),
+    nstudies = 200,
+    initial_pop_while = TRUE,
+    maxit = 100
+    )
 
 # polishing the estimated parameters with a second run
 # fitting_results2 <- model_fitting(
@@ -207,9 +257,8 @@ estimated_pars <- as.numeric(fitting_results$optim$bestmem)
 
 # plotting true parameter versus estimated parameter values
 data.frame(
-    # parameter = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib"),
     parameter = c(
-        "amplitude_ratio", "peak_time_activ", "peak_time_inhib",
+        "amplitude_ratio", "peak_time",
         "curvature_activ", "curvature_inhib"
         ),
     true_pars = true_pars,
@@ -218,22 +267,21 @@ data.frame(
     mutate(
         parameter = factor(
             x = parameter,
-            # levels = c("amplitude_ratio", "peak_time_activ", "peak_time_inhib")
             levels = c(
-                "amplitude_ratio", "peak_time_activ", "curvature_activ",
-                "peak_time_inhib", "curvature_inhib"
+                "amplitude_ratio", "peak_time",
+                "curvature_activ", "curvature_inhib"
                 )
             )
         ) %>%
     pivot_longer(cols = true_pars:estimated_pars) %>%
     ggplot(aes(x = parameter, y = value, colour = name) ) +
     geom_hline(yintercept = 1, lty = 2) +
-    geom_line(aes(group = name), size = 0.5, show.legend = FALSE) +
+    geom_line(aes(group = name), linewidth = 0.5, show.legend = FALSE) +
     geom_point(aes(shape = name), size = 3, show.legend = FALSE) +
     geom_label(
-        data = . %>% filter(parameter == "peak_time_inhib"),
+        data = . %>% filter(parameter == "peak_time"),
         aes(label = name),
-        nudge_x = 0.3,
+        nudge_x = 0.5,
         show.legend = FALSE
         ) +
     # ylim(c(0, 2) ) +
@@ -248,16 +296,12 @@ model(
     exec_threshold = 1,
     imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    # peak_time_activ = estimated_pars[2],
-    # curvature_activ = estimated_pars[3],
-    # amplitude_inhib = 1.5 / estimated_pars[1],
-    # peak_time_inhib = estimated_pars[4],
-    # curvature_inhib = estimated_pars[5]
     peak_time_activ = log(true_pars[2]),
-    curvature_activ = true_pars[4],
+    curvature_activ = true_pars[3],
     amplitude_inhib = 1.5 / true_pars[1],
-    peak_time_inhib = log(true_pars[3] * true_pars[2]),
-    curvature_inhib = true_pars[5] * true_pars[4]
+    peak_time_inhib = log(true_pars[2]),
+    curvature_inhib = true_pars[4] * true_pars[3],
+    model_version = "pim"
     ) %>%
     # was the action executed or imagined?
     mutate(
@@ -293,20 +337,13 @@ model(
     labs(
         title = "Observed and simulated distributions of RTs/MTs",
         subtitle = "Distributions of RTs and MTs in executed-executed sequences",
-        x = "Reaction/Movement time (in seconds)", y = "Density"
+        x = "Reaction/Movement time (in seconds)", y = "Probability density"
         )
-
-# saving the plot
-# ggsave(
-#     filename = "figures/predictive_checks_5pars.png",
-#     width = 12, height = 8, dpi = 300,
-#     device = "png"
-#     )
 
 # plotting the implied activation/inhibition/balance functions
 par_names <- c(
-    "amplitude_ratio", "peak_time_activ", "curvature_activ",
-    "peak_time_inhib", "curvature_inhib"
+    "amplitude_ratio", "peak_time",
+    "curvature_activ", "rel_curvature_inhib"
     )
 
 parameters_estimates_summary <- paste(as.vector(rbind(
@@ -315,19 +352,15 @@ parameters_estimates_summary <- paste(as.vector(rbind(
     ) ), collapse = "") %>% str_sub(end = -2)
 
 model(
-    nsims = 500, nsamples = 3000,
+    nsims = 500, nsamples = 2000,
     exec_threshold = 1, imag_threshold = 0.5,
     amplitude_activ = 1.5,
-    # peak_time_activ = estimated_pars[2],
-    # curvature_activ = estimated_pars[3],
-    # amplitude_inhib = 1.5 / estimated_pars[1],
-    # peak_time_inhib = estimated_pars[4],
-    # curvature_inhib = estimated_pars[5],
     peak_time_activ = log(true_pars[2]),
-    curvature_activ = 1 / sqrt(6),
+    curvature_activ = true_pars[3],
     amplitude_inhib = 1.5 / true_pars[1],
-    peak_time_inhib = log(true_pars[3]),
-    curvature_inhib = 1.5 * 1 / sqrt(6),
+    peak_time_inhib = log(true_pars[2]),
+    curvature_inhib = true_pars[4] * true_pars[3],
+    model_version = "pim",
     full_output = TRUE
     ) %>%
     pivot_longer(cols = activation:balance) %>%
@@ -348,18 +381,18 @@ model(
         show.legend = TRUE
         ) +
     # displaying estimated parameter values
-    # annotate(
-    #     geom = "label",
-    #     x = Inf, y = Inf,
-    #     hjust = 1, vjust = 1,
-    #     label = parameters_estimates_summary,
-    #     family = "Courier"
-    #     ) +
+    annotate(
+        geom = "label",
+        x = Inf, y = Inf,
+        hjust = 1, vjust = 1,
+        label = parameters_estimates_summary,
+        family = "Courier"
+        ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     scale_fill_manual(values =  met.brewer(name = "Hiroshige", n = 3) ) +
     scale_colour_manual(values = met.brewer(name = "Hiroshige", n = 3) ) +
     labs(
-        title = "Latent balance function",
+        title = "Latent activation, inhibition, and balance functions",
         x = "Time within a trial (in seconds)",
         y = "Activation/inhibition (a.u.)",
         colour = "",
@@ -390,7 +423,7 @@ parameters <- c(
     )
 
 # importing the function generating parameter values with constraints
-source(file = "hypercube_sampling.R")
+source (file = "hypercube_sampling.R")
 
 # number of included (or not) parameter sets
 table(final_par_values$included)

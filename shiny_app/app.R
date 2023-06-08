@@ -4,7 +4,7 @@
 # -------------------------------------------------- #
 # Written by Ladislas Nalborczyk                     #
 # E-mail: ladislas.nalborczyk@gmail.com              #
-# Last update: May 18, 2023                          #
+# Last update: June 8, 2023                          #
 ######################################################
 
 library(shinyhelper)
@@ -115,7 +115,7 @@ ui <- navbarPage(
             HTML(
                 paste0(
                     "Written by <a href='https://lnalborczyk.github.io'>
-                    Ladislas Nalborczyk</a>. Last update: ", format(Sys.time(), '%d %B, %Y'), "."
+                    Ladislas Nalborczyk</a>. Last update: 7 June, 2023."
                     )
                 )
             
@@ -146,7 +146,7 @@ ui <- navbarPage(
                             ),
                         sliderInput(
                             inputId = "activation_lambda",
-                            label = "Curvature of the activation curve (usually fixed)",
+                            label = "Curvature of the activation curve",
                             pre = "<i>&lambda;</i> = ",
                             min = 0, max = 2, value = 0.2, step = 0.01
                             ),
@@ -192,7 +192,7 @@ ui <- navbarPage(
             HTML(
                 paste0(
                     "Written by <a href='https://lnalborczyk.github.io'>
-                    Ladislas Nalborczyk</a>. Last update: ", format(Sys.time(), '%d %B, %Y'), "."
+                    Ladislas Nalborczyk</a>. Last update: 7 June, 2023."
                     )
                 
                 )
@@ -288,18 +288,32 @@ server <- function (input, output) {
             geom_hline(yintercept = input$exec_threshold_tmm, linetype = 2) +
             geom_line(aes(y = balance), col = "darkgreen", linewidth = 1) +
             geom_segment(
-                aes(x = 0, y = input$imag_threshold_tmm, xend = unique(onset), yend = input$imag_threshold_tmm),
+                aes(
+                    x = 0, y = input$imag_threshold_tmm * input$exec_threshold_tmm,
+                    xend = unique(onset), yend = input$imag_threshold_tmm * input$exec_threshold_tmm
+                    ),
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")
                 ) +
             geom_segment(
-                aes(x = unique(onset), y = input$imag_threshold_tmm, xend = unique(offset), yend = input$imag_threshold_tmm),
+                aes(
+                    x = unique(onset), y = input$imag_threshold_tmm * input$exec_threshold_tmm,
+                    xend = unique(offset), yend = input$imag_threshold_tmm * input$exec_threshold_tmm
+                    ),
                 arrow = arrow(length = unit(x = 0.3, units = "cm"), ends = "both", type = "closed")
                 ) +
             geom_text(
-                aes(x = unique(onset) + unique(mt) / 2, y = input$imag_threshold_tmm + 0.1, label = unique(mt) )
+                aes(
+                    x = unique(onset) + unique(mt) / 2,
+                    y = input$imag_threshold_tmm * input$exec_threshold_tmm + 0.1,
+                    label = unique(mt)
+                    )
                 ) +
             geom_text(
-                aes(x = unique(onset) / 2, y = input$imag_threshold_tmm + 0.1, label = unique(onset) )
+                aes(
+                    x = unique(onset) / 2,
+                    y = input$imag_threshold_tmm * input$exec_threshold_tmm + 0.1,
+                    label = unique(onset)
+                    )
                 ) +
             coord_cartesian(ylim = c(0, 2) ) +
             theme_bw(base_size = 14, base_family = "Open Sans") +
