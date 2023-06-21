@@ -4,7 +4,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on June 5, 2023               #
+# Last updated on June 12, 2023              #
 ##############################################
 
 library(DEoptim) # global optimisation by differential evolution
@@ -13,7 +13,7 @@ library(tidyr) # data wrangling
 library(tgp) # latin hypercube sampling
 
 # get the number of available cores
-ncores <- 8
+ncores <- 32
 cat(ncores, "cores will be used.")
 cl <- makeCluster(ncores)
 parallel::clusterEvalQ(cl = cl, expr = {library(tgp); library(DEoptim); library(dplyr); library(tidyr)})
@@ -133,8 +133,8 @@ loss_function <- function (
     # imagery threshold cannot be higher than execution threshold
     # balance max should not be above exec_threshold in imagined trials
     # balance max should not be above 4 * exec_threshold in executed trials
-    # balance value at the end of the trial should be below 0.25
-    ##########################################################################
+    # balance value at the end of the trial should be below half imag_threshold
+    #############################################################################
     
     # defining a function to compute the predicted RT and MT (quadratic formula)
     onset_offset <- function (alpha, mu, sigma, thresh) {
@@ -357,238 +357,123 @@ loss_function <- function (
 model_fitting <- function (
         par, data,
         nsims = NULL,
+        par_names,
         lower_bounds, upper_bounds,
         nstudies = 200,
         initial_pop_while = FALSE,
-        method = c(
-            "SANN", "GenSA", "pso", "hydroPSO", "DEoptim",
-            "Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb",
-            "all_methods", "optimParallel"
-            ),
         maxit = 1e2
         ) {
-    
-    if (method == "SANN") {
         
-        fit <- stats::optim(
-            par = par,
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            method = method,
-            control = list(maxit = maxit, trace = 2)
+    if (initial_pop_while == TRUE) {
+        
+        # function for generating plausible starting values
+        source (file = "scripts/hypercube_sampling_while_tmm.R")
+        
+        # generating plausible starting values
+        lhs_initial_pop <- generating_initial_pop(
+            nstudies = nstudies,
+            action_mode = unique(data$action_mode),
+            par_names = par_names,
+            lower_bounds = lower_bounds, upper_bounds = upper_bounds
             )
         
-    } else if (method == "GenSA") {
+    } else {
         
-        fit <- GenSA::GenSA(
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            par = par,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            control = list(maxit = maxit, verbose = TRUE)
-            )
+        # initialising an empty dataframe
+        lhs_initial_pop_df <- data.frame(matrix(data = NA, nrow = nstudies, ncol = length(lower_bounds) ) )
         
-    } else if (method == "pso") {
-        
-        fit <- pso::psoptim(
-            fn = loss_function,
-            data = data,
-            par = par,
-            nsims = nsims,
-            error_function = error_function,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            control = list(maxit = maxit, trace = 2, trace.stats = TRUE)
-            )
-        
-    } else if (method == "hydroPSO") {
-        
-        fit <- hydroPSO::hydroPSO(
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            par = par,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            control = list(
-                maxit = maxit,
-                verbose = TRUE,
-                # using all available cores
-                parallel = "parallel"
-                )
-            )
-        
-    } else if (method == "DEoptim") {
-        
-        if (initial_pop_while == TRUE) {
+        # populating it with hypercube samples
+        for (i in 1:length(lower_bounds) ){
             
-            # function for generating plausible starting values
-            # source (file = "scripts/hypercube_sampling_while_4pars.R")
-            source (file = "parameter_recovery/code/hypercube_sampling_while_4pars.R")
-            
-            # generating plausible starting values
-            lhs_initial_pop <- generating_initial_pop(
-                nstudies = nstudies,
-                action_mode = unique(data$action_mode),
-                lower_bounds = lower_bounds, upper_bounds = upper_bounds
-                )
-            
-        } else {
-            
-            lhs_initial_pop = as.matrix(data.frame(
-                lhs(n = nstudies, rect = c(lower_bounds[1], upper_bounds[1]) )[, 1],
-                lhs(n = nstudies, rect = c(lower_bounds[2], upper_bounds[2]) )[, 1],
-                lhs(n = nstudies, rect = c(lower_bounds[3], upper_bounds[3]) )[, 1],
-                lhs(n = nstudies, rect = c(lower_bounds[4], upper_bounds[4]) )[, 1]
-                ) )
+            lhs_initial_pop_df[, i] <- lhs(n = nstudies, rect = c(lower_bounds[i], upper_bounds[i]) )[, 1]
             
         }
         
-        # starting the optimisation
-        fit <- DEoptim::DEoptim(
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            # error_function = error_function,
-            lower = lower_bounds,
-            upper = upper_bounds,
-            control = DEoptim.control(
-                # maximum number of iterations
-                itermax = maxit,
-                # printing progress iteration
-                trace = TRUE,
-                # printing progress every 10 iterations
-                # trace = 10,
-                # defines the differential evolution strategy (defaults to 2)
-                # 1: DE / rand / 1 / bin (classical strategy)
-                # 2: DE / local-to-best / 1 / bin (default)
-                # 3: DE / best / 1 / bin with jitter
-                # 4: DE / rand / 1 / bin with per-vector-dither
-                # 5: DE / rand / 1 / bin with per-generation-dither
-                # 6: DE / current-to-p-best / 1
-                strategy = 3,
-                # value to reach (defaults to -Inf)
-                VTR = 0,
-                # number of population members (by default 10*length(lower) )
-                # NP = 200,
-                NP = nrow(lhs_initial_pop),
-                # F is the mutation constant (defaults to 0.8)
-                F = 0.9,
-                # crossover probability (recombination) (defaults to 0.5)
-                CR = 0.95,
-                # c controls the speed of the crossover adaptation
-                # when strategy = 6 (defaults to 0)
-                # c = 0.1,
-                # proportion of best solutions to use in the mutation
-                # when strategy = 6 (defaults to 0.2)
-                # p = 0.1,
-                # defining the initial population using lhs
-                initialpop = lhs_initial_pop,
-                # when to stop optimisation
-                reltol = 1e-6,
-                # number of iteration after which to stop the optimisation
-                # if there is no improvement
-                # steptol = 500,
-                # using all available cores
-                parallelType = "parallel",
-                packages = c("DEoptim", "dplyr", "tidyr", "tgp"),
-                parVar = c("model", "loss_function")
-                )
-            )
-        
-    } else if (method %in% c("Nelder-Mead", "BFGS", "L-BFGS-B", "bobyqa", "nlminb") ) {
-        
-        fit <- optimx::optimx(
-            par = par,
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            method = method,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            control = list(maxit = maxit, trace = 6)
-            )
-        
-    } else if (method == "all_methods") {
-        
-        fit <- optimx::optimx(
-            par = par,
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            control = list(maxit = maxit, trace = 2, all.methods = TRUE)
-            )
-        
-    } else if (method == "optimParallel") {
-        
-        # using half of all available cores by default
-        cl <- makeCluster(detectCores() / 2)
-        
-        # defining this as the default cluster
-        setDefaultCluster(cl = cl)
-        
-        # loading the tidyverse package on each cluster
-        # clusterEvalQ(cl, library(optimParallel) )
-        clusterEvalQ(cl, library(tidyverse) )
-        
-        # loading model and loss function
-        clusterExport(cl, c("model", "loss_function") )
-        
-        # parallel optimisation
-        fit <- optimParallel::optimParallel(
-            par = par,
-            fn = loss_function,
-            data = data,
-            nsims = nsims,
-            error_function = error_function,
-            lower = c(0.25, -1, 0.1, 1),
-            upper = c(4, 0.5, 0.6, 2),
-            verbose = TRUE
-            )
-        
-        # stopping the cluster
-        stopCluster(cl)
+        # converting to a matrix (as requested by deoptim)
+        lhs_initial_pop <- as.matrix(lhs_initial_pop_df)
         
     }
+    
+    # starting the optimisation
+    fit <- DEoptim::DEoptim(
+        fn = loss_function,
+        data = data,
+        nsims = nsims,
+        # error_function = error_function,
+        lower = lower_bounds,
+        upper = upper_bounds,
+        control = DEoptim.control(
+            # maximum number of iterations
+            itermax = maxit,
+            # printing progress iteration
+            trace = TRUE,
+            # printing progress every 10 iterations
+            # trace = 10,
+            # defines the differential evolution strategy (defaults to 2)
+            # 1: DE / rand / 1 / bin (classical strategy)
+            # 2: DE / local-to-best / 1 / bin (default)
+            # 3: DE / best / 1 / bin with jitter
+            # 4: DE / rand / 1 / bin with per-vector-dither
+            # 5: DE / rand / 1 / bin with per-generation-dither
+            # 6: DE / current-to-p-best / 1
+            strategy = 3,
+            # value to reach (defaults to -Inf)
+            VTR = 0,
+            # number of population members (by default 10*length(lower) )
+            # NP = 200,
+            NP = nrow(lhs_initial_pop),
+            # F is the mutation constant (defaults to 0.8)
+            F = 0.9,
+            # crossover probability (recombination) (defaults to 0.5)
+            CR = 0.95,
+            # c controls the speed of the crossover adaptation
+            # when strategy = 6 (defaults to 0)
+            # c = 0.1,
+            # proportion of best solutions to use in the mutation
+            # when strategy = 6 (defaults to 0.2)
+            # p = 0.1,
+            # defining the initial population using lhs
+            initialpop = lhs_initial_pop,
+            # when to stop optimisation
+            reltol = 1e-6,
+            # number of iteration after which to stop the optimisation
+            # if there is no improvement
+            # steptol = 500,
+            # using all available cores
+            parallelType = "parallel",
+            packages = c("DEoptim", "dplyr", "tidyr", "tgp"),
+            parVar = c("model", "loss_function")
+            )
+        )
     
     return (fit)
     
 }
 
 # number of parameter sets to generate
-nstudies <- 50
+nstudies <- 30
 
 # action mode ("executed" or "imagined")
-# if action_mode == "imagined", we should change bounds on amplitude_ratio
 action_mode <- "executed"
 
 # bounds on parameters
-lower_bounds <- c(0, 1.5, 0.5, 0.1)
-upper_bounds <- c(1.5, 3, 1.5, 0.6)
+lower_bounds <- c(0, 0.5, 0.1, 0)
+upper_bounds <- c(2, 1.5, 0.6, 1)
 
 # function for generating plausible starting values
-# source (file = "scripts/hypercube_sampling_while_4pars.R")
-source (file = "parameter_recovery/code/hypercube_sampling_while_4pars.R")
+source (file = "scripts/hypercube_sampling_while_tmm.R")
+
+# names of free parameters
+par_names <- c("amplitude_activ", "peak_time_activ", "curvature_activ", "exec_threshold")
 
 # generating plausible starting values
 lhs_pars <- generating_initial_pop(
     nstudies = nstudies,
     action_mode = action_mode,
-    lower_bounds = lower_bounds, upper_bounds = upper_bounds
+    lower_bounds = lower_bounds,
+    par_names = par_names,
+    upper_bounds = upper_bounds
     )
-
-# names of free parameters
-par_names <- c("exec_threshold", "amplitude_activ", "peak_time_activ", "curvature_activ")
 
 # setting columns names
 # colnames(lhs_pars) <- par_names
@@ -632,11 +517,11 @@ for (i in 1:max(par_recov_results$study_id) ) {
     temp_df <- model(
         nsims = unique(par_recov_results$nobs[par_recov_results$study_id == i]),
         nsamples = 3000,
-        exec_threshold = true_pars[1],
-        imag_threshold = 0.5,
-        amplitude_activ = true_pars[2],
-        peak_time_activ = log(true_pars[3]),
-        curvature_activ = true_pars[4]
+        exec_threshold = true_pars[4] * true_pars[1],
+        imag_threshold = 0.5 * true_pars[4] * true_pars[1],
+        amplitude_activ = true_pars[1],
+        peak_time_activ = log(true_pars[2]),
+        curvature_activ = true_pars[3]
         ) %>%
         mutate(action_mode = action_mode) %>%
         # keeping only the relevant columns
@@ -657,9 +542,9 @@ for (i in 1:max(par_recov_results$study_id) ) {
     temp_fitting_results <- model_fitting(
         data = temp_df,
         nsims = 500,
-        method = "DEoptim",
         lower_bounds = lower_bounds,
         upper_bounds = upper_bounds,
+        par_names = par_names,
         nstudies = 200,
         initial_pop_while = TRUE,
         maxit = 3000
@@ -697,7 +582,7 @@ print(data.frame(par_recov_results) )
 # saving simulation results
 save(
     par_recov_results,
-    file = "3pars_50to500obs_500sims_DEoptim_2000iter_g2_lhs_while.Rdata"
+    file = "4pars_tmm_50to500obs_500sims_DEoptim_3000iter_g2_lhs_while.Rdata"
     )
 
 # stopping the cluster

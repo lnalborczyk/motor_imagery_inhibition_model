@@ -3,7 +3,7 @@
 # ------------------------------------------ #
 # Written by Ladislas Nalborczyk             #
 # E-mail: ladislas.nalborczyk@gmail.com      #
-# Last updated on June 8, 2023               #
+# Last updated on June 20, 2023              #
 ##############################################
 
 # concordance correlation coefficient (CCC)
@@ -594,7 +594,7 @@ save(
 
 # loading it
 # load(file = "parameter_recovery/5pars_100_obs_1e3_DEoptim_g2.Rdata")
-load(file = "parameter_recovery/results/5pars_50to500obs_200then500sims_DEoptim_2000then2000iter_g2_lhs_while.Rdata")
+load(file = "parameter_recovery/results/4pars_pim_50to500obs_500sims_DEoptim_3000iter_g2_lhs_while.Rdata")
 
 # plotting final error values
 # par_recov_results2 <- par_recov_results
@@ -611,7 +611,7 @@ source(file = "utils/facet_wrap_equal.R")
 # good if.75<r<.9, and excellent if r>.9
 par_recov_results %>%
     # filter(final_error != 0) %>%
-    ggplot(aes(x = true_pars, y = estimated_pars1) ) +
+    ggplot(aes(x = true_pars, y = estimated_pars) ) +
     geom_abline(intercept = 0, slope = 1, lty = 2) +
     geom_point(
         # aes(fill = as.factor(study) ),
@@ -637,7 +637,7 @@ par_recov_results %>%
 
 # saving the plot
 ggsave(
-    filename = "parameter_recovery/figures/5pars_50to500obs_200then500sims_DEoptim_2000then2000iter_g2_lhs_while.png",
+    filename = "parameter_recovery/figures/4pars_pim_50to500obs_500sims_DEoptim_3000iter_g2_lhs_while.png",
     width = 12, height = 8, dpi = 300,
     device = "png"
     )
@@ -661,9 +661,16 @@ par_recov_results %>%
 # correlation matrix between estimated parameters
 par_recov_results %>%
     # filter(final_error != 0) %>%
-    filter(nobs == 500) %>%
-    select(study, parameters, estimated_pars) %>%
+    # filter(nobs == 500) %>%
+    select(study, nobs, parameters, estimated_pars) %>%
     pivot_wider(names_from = parameters, values_from = estimated_pars) %>%
-    # data.frame()
-    ggpairs(columns = 2:6) +
+    # head()
+    ggpairs(columns = 3:6) +
     theme_bw(base_size = 12, base_family = "Open Sans")
+
+# saving the plot
+ggsave(
+    filename = "parameter_recovery/figures/4pars_pim_50to500obs_500sims_DEoptim_3000iter_g2_lhs_while_correlation_matrix.png",
+    width = 12, height = 8, dpi = 300,
+    device = "png"
+    )

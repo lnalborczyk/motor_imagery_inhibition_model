@@ -5,7 +5,7 @@ account: barelysignificant
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 9111654
-bundleId: 7316394
+bundleId: 7320565
 url: https://barelysignificant.shinyapps.io/motor_imagery_inhibition_model/
-when: 1686146026.14665
-lastSyncTime: 1686146026.14666
+when: 1686223210.8906
+lastSyncTime: 1686223210.89063
